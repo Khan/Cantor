@@ -1,0 +1,3 @@
+Prototypes around a medium and toolset for exploring quantities and arithmetic operations.
+
+c.f. http://klr.tumblr.com/post/147245626988/a-medium-supporting-the-exploration-of-quantities
