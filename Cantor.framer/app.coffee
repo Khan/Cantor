@@ -4,9 +4,12 @@ Screen.backgroundColor = "white"
 
 # Configuration, constants
 
-debugShowLensFrames = false
-shouldReflowSecondArgument = true
 enableAdditionExpressionForming = false
+shouldReflowSecondAdditionArgument = true
+
+enableBackgroundGrid = true
+
+debugShowLensFrames = false
 
 # Lenses
 
@@ -158,7 +161,7 @@ class BlockLens extends Lens
 						
 						this.layout = 
 							state: "tentative"
-							firstRowSkip: if shouldReflowSecondArgument then otherLayer.value % otherLayer.layout.numberOfColumns else 0
+							firstRowSkip: if shouldReflowSecondAdditionArgument then otherLayer.value % otherLayer.layout.numberOfColumns else 0
 							numberOfColumns: otherLayer.layout.numberOfColumns
 						this.update(true)
 						
@@ -295,6 +298,6 @@ testBlock2 = new BlockLens
 	x: 160
 	y: 280
 
-grid = new BackgroundLayer
-grid.style =
-	"background": "url('images/grid.svg')"
+if enableBackgroundGrid
+	grid = new BackgroundLayer
+	grid.style["background"] = "url('images/grid.svg')"
