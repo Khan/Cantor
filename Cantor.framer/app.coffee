@@ -6,6 +6,7 @@ Screen.backgroundColor = "white"
 
 debugShowLensFrames = false
 shouldReflowSecondArgument = true
+enableAdditionExpressionForming = false
 
 # Lenses
 
@@ -100,6 +101,8 @@ class BlockLens extends Lens
 			this.bringToFront()
 		
 		this.draggable.on Events.DragMove, (event) =>
+			return if not enableAdditionExpressionForming
+		
 			intersectsWithRange = (otherLayer) =>
 				nearFrame = Utils.frameInset(otherLayer.frame, -80)
 				return utils.framesIntersect(this.frame, nearFrame)
