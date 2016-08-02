@@ -105,7 +105,6 @@ class BlockLens extends Lens
 			
 			base = Math.min(this.layout.numberOfColumns, this.value)
 			currentUnit = Math.round(currentX / (BlockLens.blockSize / 2)) - (base - 1)
-			print(currentUnit)
 			if currentUnit >= 0
 				if hasAdjustedForNegativeMove
 					this.y += BlockLens.blockSize
