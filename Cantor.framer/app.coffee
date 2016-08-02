@@ -8,6 +8,7 @@ enableAdditionExpressionForming = false
 shouldReflowSecondAdditionArgument = true
 
 enableBackgroundGrid = true
+enableBlockGrid = true
 
 debugShowLensFrames = false
 
@@ -41,28 +42,29 @@ class BlockLens extends Lens
 				width: BlockLens.blockSize
 				height: BlockLens.blockSize
 				backgroundColor: kaColors.math1
-				borderColor: kaColors.math2
-				borderWidth: 1
+				borderColor: if enableBlockGrid then kaColors.math2 else ""
+				borderWidth: if enableBlockGrid then 1 else 0
 			this.blockLayers.push block
 				
-		this.onesTick = new Layer
-			parent: this
-			backgroundColor: kaColors.white
-			x: BlockLens.blockSize * 5 - 1
-			y: 0
-			width: 2
-			height: BlockLens.blockSize
-			
-		this.tensTicks = []
-		for tensTickIndex in [0...Math.floor(this.value / 20)]
-			tensTick = new Layer
+		if enableBlockGrid
+			this.onesTick = new Layer
 				parent: this
 				backgroundColor: kaColors.white
-				x: 0
-				y: BlockLens.blockSize * (tensTickIndex + 1) * 2
-				width: BlockLens.blockSize * 10
-				height: 2
-			this.tensTicks.push(tensTick)
+				x: BlockLens.blockSize * 5 - 1
+				y: 0
+				width: 2
+				height: BlockLens.blockSize
+				
+			this.tensTicks = []
+			for tensTickIndex in [0...Math.floor(this.value / 20)]
+				tensTick = new Layer
+					parent: this
+					backgroundColor: kaColors.white
+					x: 0
+					y: BlockLens.blockSize * (tensTickIndex + 1) * 2
+					width: BlockLens.blockSize * 10
+					height: 2
+				this.tensTicks.push(tensTick)
 			
 		this.resizeHandle = new Layer
 			parent: this
@@ -224,18 +226,20 @@ class BlockLens extends Lens
 		this.width = BlockLens.blockSize * utils.clip(this.value, 1, this.layout.numberOfColumns)
 		this.height = this.blockLayers[this.value - 1].maxY
 
-		this.onesTick.height = Math.floor((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns) * BlockLens.blockSize
-		# If the first row starts after 5, hide the ones tick.
-		if this.layout.firstRowSkip >= 5
-			this.onesTick.y = BlockLens.blockSize
-			this.onesTick.height -= BlockLens.blockSize
-		else
-			this.onesTick.y = 0
-		# If the last row doesn't reach the 5s place, make it a bit shorter.
-		lastRowLength = (this.value + this.layout.firstRowSkip) % this.layout.numberOfColumns
-		this.onesTick.height += BlockLens.blockSize if lastRowLength >= 5
-		this.onesTick.visible = Math.min(this.value, this.layout.numberOfColumns) >= 5
-		tensTick.width = (BlockLens.blockSize * this.layout.numberOfColumns) for tensTick in this.tensTicks
+		# Update the grid ticks:
+		if enableBlockGrid
+			this.onesTick.height = Math.floor((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns) * BlockLens.blockSize
+			# If the first row starts after 5, hide the ones tick.
+			if this.layout.firstRowSkip >= 5
+				this.onesTick.y = BlockLens.blockSize
+				this.onesTick.height -= BlockLens.blockSize
+			else
+				this.onesTick.y = 0
+			# If the last row doesn't reach the 5s place, make it a bit shorter.
+			lastRowLength = (this.value + this.layout.firstRowSkip) % this.layout.numberOfColumns
+			this.onesTick.height += BlockLens.blockSize if lastRowLength >= 5
+			this.onesTick.visible = Math.min(this.value, this.layout.numberOfColumns) >= 5
+			tensTick.width = (BlockLens.blockSize * this.layout.numberOfColumns) for tensTick in this.tensTicks
 		
 		this.resizeHandle.visible = this.layout.state != "tentativeReceiving"
 
