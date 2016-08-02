@@ -21,7 +21,7 @@ class Lens extends Layer
 		
 class BlockLens extends Lens
 	this.blockSize = 40
-	this.resizeHandleSize = 30
+	this.resizeHandleSize = 40
 		
 	constructor: (args) ->
 		super args
@@ -81,9 +81,35 @@ class BlockLens extends Lens
 			this.update()
 		this.resizeHandle.on Events.DragEnd, =>
 			this.layoutResizeHandle true
+			
+		this.reflowHandle = new Layer
+			parent: this
+			width: BlockLens.resizeHandleSize
+			height: BlockLens.resizeHandleSize
+			borderRadius: BlockLens.resizeHandleSize / 2.0
+			borderColor: kaColors.math2
+			borderWidth: 6
+			backgroundColor: ""
+			x: -BlockLens.resizeHandleSize / 2.0
+			
+		this.reflowHandle.draggable.enabled = true
+		this.reflowHandle.draggable.momentum = false
+		this.reflowHandle.draggable.vertical = false
+		this.reflowHandle.draggable.constraints = {x: -BlockLens.resizeHandleSize / 2, y: 0, width: BlockLens.blockSize * 10 - BlockLens.resizeHandleSize / 2, height: 0}
+		this.reflowHandle.draggable.overdrag = false
+		this.reflowHandle.draggable.propagateEvents = false
+		this.reflowHandle.on Events.DragMove, =>
+			startPoint = this.reflowHandle.draggable.layerStartPoint 
+			offset = this.reflowHandle.draggable.offset
+			this.layout.firstRowSkip = Math.round((startPoint.x + offset.x) / BlockLens.blockSize)
+			this.update()
+		this.reflowHandle.on Events.DragEnd, =>
+			this.layoutReflowHandle true
+
 		
 		this.update()
 		this.layoutResizeHandle false
+		this.layoutReflowHandle false
 		
 		this.draggable.enabled = true
 		this.draggable.momentum = false
@@ -200,6 +226,13 @@ class BlockLens extends Lens
 				x: this.width - BlockLens.resizeHandleSize / 2
 				y: this.height - BlockLens.resizeHandleSize / 2
 			time: if animated then 0.1 else 0	
+			
+	layoutReflowHandle: (animated) ->
+		this.reflowHandle.animate
+			properties:
+				x: Math.max(-BlockLens.resizeHandleSize / 2, this.reflowHandle.x)
+				y: (BlockLens.blockSize - BlockLens.resizeHandleSize) / 2
+			time: if animated then 0.1 else 0	
 
 class OperationLabel extends Layer
 	this.size = 50
@@ -242,7 +275,7 @@ testBlock = new BlockLens
 	y: 50
 	
 testBlock2 = new BlockLens
-	value: 15
+	value: 35
 	x: 150
 	y: 300
 
