@@ -59,6 +59,7 @@ class BlockLens extends Lens
 				y: BlockLens.blockSize * (tensTickIndex + 1) * 2
 				width: BlockLens.blockSize * 10
 				height: 2
+			this.tensTicks.push(tensTick)
 			
 		this.resizeHandle = new Layer
 			parent: this
@@ -95,7 +96,7 @@ class BlockLens extends Lens
 		this.reflowHandle.draggable.enabled = true
 		this.reflowHandle.draggable.momentum = false
 		this.reflowHandle.draggable.vertical = false
-		this.reflowHandle.draggable.constraints = {x: -BlockLens.resizeHandleSize / 2, y: 0, width: BlockLens.blockSize * 10 - BlockLens.resizeHandleSize / 2, height: 0}
+		this.reflowHandle.draggable.constraints = {x: -BlockLens.resizeHandleSize / 2, y: 0, width: BlockLens.blockSize * 10, height: 0}
 		this.reflowHandle.draggable.overdrag = false
 		this.reflowHandle.draggable.propagateEvents = false
 		this.reflowHandle.on Events.DragMove, =>
@@ -172,6 +173,12 @@ class BlockLens extends Lens
 				this.operationLabel.y = (this.y + this.draggable.otherLayer.y) / 2
 		
 		this.draggable.on Events.DragEnd, (event) =>
+			this.animate
+				properties:
+					x: Math.round(this.x / BlockLens.blockSize) * BlockLens.blockSize
+					y: Math.round(this.y / BlockLens.blockSize) * BlockLens.blockSize
+				time: 0.2
+		
 			this.draggable.otherLayer?.layout.state = "static"
 			this.draggable.otherLayer?.update()
 	
@@ -208,15 +215,24 @@ class BlockLens extends Lens
 				blockLayer.animate {properties: {x: newX, y: newY}, time: 0.15, delay: 0.008 * blockNumber}
 			else
 				blockLayer.props = {x: newX, y: newY}
-		
-		this.onesTick.visible = Math.min(this.value, this.layout.numberOfColumns) >= 5
-		
+				
 		# Resize lens to fit blocks.
 		contentFrame = this.contentFrame()
 		this.width = BlockLens.blockSize * utils.clip(this.value, 1, this.layout.numberOfColumns)
 		this.height = this.blockLayers[this.value - 1].maxY
 
-		this.onesTick.height = Math.ceil(this.value / this.layoutnumberOfColumns) * BlockLens.blockSize
+		this.onesTick.height = Math.floor((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns) * BlockLens.blockSize
+		# If the first row starts after 5, hide the ones tick.
+		if this.layout.firstRowSkip >= 5
+			this.onesTick.y = BlockLens.blockSize
+			this.onesTick.height -= BlockLens.blockSize
+		else
+			this.onesTick.y = 0
+		# If the last row doesn't reach the 5s place, make it a bit shorter.
+		lastRowLength = (this.value + this.layout.firstRowSkip) % this.layout.numberOfColumns
+		this.onesTick.height += BlockLens.blockSize if lastRowLength >= 5
+		this.onesTick.visible = Math.min(this.value, this.layout.numberOfColumns) >= 5
+		tensTick.width = (BlockLens.blockSize * this.layout.numberOfColumns) for tensTick in this.tensTicks
 		
 		this.resizeHandle.visible = this.layout.state != "tentativeReceiving"
 
@@ -271,11 +287,14 @@ class OperationLabel extends Layer
 
 testBlock = new BlockLens
 	value: 8
-	x: 150
-	y: 50
+	x: 160
+	y: 80
 	
 testBlock2 = new BlockLens
 	value: 35
-	x: 150
-	y: 300
+	x: 160
+	y: 280
 
+grid = new BackgroundLayer
+grid.style =
+	"background": "url('images/grid.svg')"
