@@ -90,21 +90,37 @@ class BlockLens extends Lens
 			borderColor: kaColors.math2
 			borderWidth: 6
 			backgroundColor: ""
-			x: -BlockLens.resizeHandleSize / 2.0
 			
 		this.reflowHandle.draggable.enabled = true
 		this.reflowHandle.draggable.momentum = false
 		this.reflowHandle.draggable.vertical = false
-		this.reflowHandle.draggable.constraints = {x: -BlockLens.resizeHandleSize / 2, y: 0, width: BlockLens.blockSize * 10 - BlockLens.resizeHandleSize / 2, height: 0}
+		this.reflowHandle.draggable.constraints = {x: 0, y: 0, width: BlockLens.blockSize * 10, height: 0}
 		this.reflowHandle.draggable.overdrag = false
 		this.reflowHandle.draggable.propagateEvents = false
+		hasAdjustedForNegativeMove = false
 		this.reflowHandle.on Events.DragMove, =>
 			startPoint = this.reflowHandle.draggable.layerStartPoint 
 			offset = this.reflowHandle.draggable.offset
-			this.layout.firstRowSkip = Math.round((startPoint.x + offset.x) / BlockLens.blockSize)
+			currentX = startPoint.x + offset.x
+			
+			base = Math.min(this.layout.numberOfColumns, this.value)
+			currentUnit = Math.round(currentX / (BlockLens.blockSize / 2)) - (base - 1)
+			print(currentUnit)
+			if currentUnit >= 0
+				if hasAdjustedForNegativeMove
+					this.y += BlockLens.blockSize
+					this.reflowHandle.y -= BlockLens.blockSize
+					hasAdjustedForNegativeMove = false
+				this.layout.firstRowSkip = currentUnit
+			else
+				if not hasAdjustedForNegativeMove
+					this.y -= BlockLens.blockSize
+					this.reflowHandle.y += BlockLens.blockSize
+					hasAdjustedForNegativeMove = true
+				this.layout.firstRowSkip = base + currentUnit
 			this.update()
 		this.reflowHandle.on Events.DragEnd, =>
-			this.layoutReflowHandle true
+# 			this.layoutReflowHandle true
 
 		
 		this.update()
@@ -230,8 +246,8 @@ class BlockLens extends Lens
 	layoutReflowHandle: (animated) ->
 		this.reflowHandle.animate
 			properties:
-				x: Math.max(-BlockLens.resizeHandleSize / 2, this.reflowHandle.x)
-				y: (BlockLens.blockSize - BlockLens.resizeHandleSize) / 2
+				x: (this.width - BlockLens.resizeHandleSize) / 2
+				y: (this.height - BlockLens.resizeHandleSize) / 2
 			time: if animated then 0.1 else 0	
 
 class OperationLabel extends Layer
