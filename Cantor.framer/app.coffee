@@ -1,12 +1,19 @@
 kaColors = require "kaColors"
 utils = require "utils"
+{TextLayer} = require 'TextLayer'
 Screen.backgroundColor = "white"
 
 # Configuration, constants
 
-debugShowLensFrames = false
-shouldReflowSecondArgument = true
 enableAdditionExpressionForming = false
+shouldReflowSecondAdditionArgument = true
+
+enableBackgroundGrid = true
+enableBlockGrid = true
+enableBlockGridTicks = false
+enableBlockDigitLabels = false
+
+debugShowLensFrames = false
 
 # Lenses
 
@@ -21,7 +28,7 @@ class Lens extends Layer
 		
 class BlockLens extends Lens
 	this.blockSize = 40
-	this.resizeHandleSize = 40
+	this.resizeHandleSize = 60
 		
 	constructor: (args) ->
 		super args
@@ -38,27 +45,32 @@ class BlockLens extends Lens
 				width: BlockLens.blockSize
 				height: BlockLens.blockSize
 				backgroundColor: kaColors.math1
-				borderColor: kaColors.math2
-				borderWidth: 1
+				borderColor: if enableBlockGrid then kaColors.math2 else ""
+				borderWidth: if enableBlockGrid then 1 else 0
 			this.blockLayers.push block
 				
-		this.onesTick = new Layer
-			parent: this
-			backgroundColor: kaColors.white
-			x: BlockLens.blockSize * 5 - 1
-			y: 0
-			width: 2
-			height: BlockLens.blockSize
-			
-		this.tensTicks = []
-		for tensTickIndex in [0...Math.floor(this.value / 20)]
-			tensTick = new Layer
+		if enableBlockGridTicks
+			this.onesTick = new Layer
 				parent: this
 				backgroundColor: kaColors.white
-				x: 0
-				y: BlockLens.blockSize * (tensTickIndex + 1) * 2
-				width: BlockLens.blockSize * 10
-				height: 2
+				x: BlockLens.blockSize * 5 - 1
+				y: 0
+				width: 2
+				height: BlockLens.blockSize
+				
+			this.tensTicks = []
+			for tensTickIndex in [0...Math.floor(this.value / 20)]
+				tensTick = new Layer
+					parent: this
+					backgroundColor: kaColors.white
+					x: 0
+					y: BlockLens.blockSize * (tensTickIndex + 1) * 2
+					width: BlockLens.blockSize * 10
+					height: 2
+				this.tensTicks.push(tensTick)
+			
+		this.borderWidth = 1
+		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
 			
 		this.resizeHandle = new Layer
 			parent: this
@@ -71,7 +83,7 @@ class BlockLens extends Lens
 			
 		this.resizeHandle.draggable.enabled = true
 		this.resizeHandle.draggable.momentum = false
-		this.resizeHandle.draggable.constraints = {x: BlockLens.blockSize, y: 0, width: BlockLens.blockSize * 10 - BlockLens.resizeHandleSize / 2, height: this.value * BlockLens.blockSize}
+		this.resizeHandle.draggable.constraints = {x: BlockLens.blockSize, y: 0, width: BlockLens.blockSize * 10, height: this.value * BlockLens.blockSize}
 		this.resizeHandle.draggable.overdrag = false
 		this.resizeHandle.draggable.propagateEvents = false
 		this.resizeHandle.on Events.DragMove, =>
@@ -120,11 +132,6 @@ class BlockLens extends Lens
 			this.update()
 		this.reflowHandle.on Events.DragEnd, =>
 # 			this.layoutReflowHandle true
-
-		
-		this.update()
-		this.layoutResizeHandle false
-		this.layoutReflowHandle false
 		
 		this.draggable.enabled = true
 		this.draggable.momentum = false
@@ -172,7 +179,7 @@ class BlockLens extends Lens
 						
 						this.layout = 
 							state: "tentative"
-							firstRowSkip: if shouldReflowSecondArgument then otherLayer.value % otherLayer.layout.numberOfColumns else 0
+							firstRowSkip: if shouldReflowSecondAdditionArgument then otherLayer.value % otherLayer.layout.numberOfColumns else 0
 							numberOfColumns: otherLayer.layout.numberOfColumns
 						this.update(true)
 						
@@ -187,6 +194,12 @@ class BlockLens extends Lens
 				this.operationLabel.y = (this.y + this.draggable.otherLayer.y) / 2
 		
 		this.draggable.on Events.DragEnd, (event) =>
+			this.animate
+				properties:
+					x: Math.round(this.x / BlockLens.blockSize) * BlockLens.blockSize
+					y: Math.round(this.y / BlockLens.blockSize) * BlockLens.blockSize
+				time: 0.2
+		
 			this.draggable.otherLayer?.layout.state = "static"
 			this.draggable.otherLayer?.update()
 	
@@ -207,6 +220,26 @@ class BlockLens extends Lens
 				this.layout = this.originalLayout
 				
 			this.update(true)
+			
+		if enableBlockDigitLabels
+			this.digitLabel = new TextLayer
+				x: 42
+				fontFamily: "Helvetica"
+				text: this.value
+				parent: this
+				color: kaColors.math1
+				fontSize: 34
+				autoSize: true
+				backgroundColor: "rgba(255, 255, 255, 1.0)"
+				borderRadius: 5
+				textAlign: "center"
+				paddingTop: 5
+			this.digitLabel.width += 12
+			this.digitLabel.height += 5
+				
+		this.update()
+		this.layoutResizeHandle false
+		this.layoutReflowHandle false
 		
 	update: (animated) ->
 		this.style["-webkit-filter"] = switch this.layout.state 
@@ -223,15 +256,29 @@ class BlockLens extends Lens
 				blockLayer.animate {properties: {x: newX, y: newY}, time: 0.15, delay: 0.008 * blockNumber}
 			else
 				blockLayer.props = {x: newX, y: newY}
-		
-		this.onesTick.visible = Math.min(this.value, this.layout.numberOfColumns) >= 5
-		
+				
 		# Resize lens to fit blocks.
 		contentFrame = this.contentFrame()
-		this.width = BlockLens.blockSize * utils.clip(this.value, 1, this.layout.numberOfColumns)
+		this.width = BlockLens.blockSize * this.layout.numberOfColumns
 		this.height = this.blockLayers[this.value - 1].maxY
 
-		this.onesTick.height = Math.ceil(this.value / this.layoutnumberOfColumns) * BlockLens.blockSize
+		# Update the grid ticks:
+		if enableBlockGridTicks
+			this.onesTick.height = Math.floor((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns) * BlockLens.blockSize
+			# If the first row starts after 5, hide the ones tick.
+			if this.layout.firstRowSkip >= 5
+				this.onesTick.y = BlockLens.blockSize
+				this.onesTick.height -= BlockLens.blockSize
+			else
+				this.onesTick.y = 0
+			# If the last row doesn't reach the 5s place, make it a bit shorter.
+			lastRowLength = (this.value + this.layout.firstRowSkip) % this.layout.numberOfColumns
+			this.onesTick.height += BlockLens.blockSize if lastRowLength >= 5
+			this.onesTick.visible = Math.min(this.value, this.layout.numberOfColumns) >= 5
+			tensTick.width = (BlockLens.blockSize * this.layout.numberOfColumns) for tensTick in this.tensTicks
+			
+		if enableBlockDigitLabels
+			this.digitLabel.midY = this.height / 2
 		
 		this.resizeHandle.visible = this.layout.state != "tentativeReceiving"
 
@@ -286,11 +333,14 @@ class OperationLabel extends Layer
 
 testBlock = new BlockLens
 	value: 8
-	x: 150
-	y: 50
+	x: 160
+	y: 80
 	
 testBlock2 = new BlockLens
 	value: 35
-	x: 150
-	y: 300
+	x: 160
+	y: 280
 
+if enableBackgroundGrid
+	grid = new BackgroundLayer
+	grid.style["background"] = "url('images/grid.svg')"
