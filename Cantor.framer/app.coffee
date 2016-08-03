@@ -1,5 +1,6 @@
 kaColors = require "kaColors"
 utils = require "utils"
+{TextLayer} = require 'TextLayer'
 Screen.backgroundColor = "white"
 
 # Configuration, constants
@@ -9,6 +10,8 @@ shouldReflowSecondAdditionArgument = true
 
 enableBackgroundGrid = true
 enableBlockGrid = true
+enableBlockGridTicks = false
+enableBlockDigitLabels = false
 
 debugShowLensFrames = false
 
@@ -25,7 +28,7 @@ class Lens extends Layer
 		
 class BlockLens extends Lens
 	this.blockSize = 40
-	this.resizeHandleSize = 40
+	this.resizeHandleSize = 60
 		
 	constructor: (args) ->
 		super args
@@ -46,7 +49,7 @@ class BlockLens extends Lens
 				borderWidth: if enableBlockGrid then 1 else 0
 			this.blockLayers.push block
 				
-		if enableBlockGrid
+		if enableBlockGridTicks
 			this.onesTick = new Layer
 				parent: this
 				backgroundColor: kaColors.white
@@ -77,7 +80,7 @@ class BlockLens extends Lens
 			
 		this.resizeHandle.draggable.enabled = true
 		this.resizeHandle.draggable.momentum = false
-		this.resizeHandle.draggable.constraints = {x: BlockLens.blockSize, y: 0, width: BlockLens.blockSize * 10 - BlockLens.resizeHandleSize / 2, height: this.value * BlockLens.blockSize}
+		this.resizeHandle.draggable.constraints = {x: BlockLens.blockSize, y: 0, width: BlockLens.blockSize * 10, height: this.value * BlockLens.blockSize}
 		this.resizeHandle.draggable.overdrag = false
 		this.resizeHandle.draggable.propagateEvents = false
 		this.resizeHandle.on Events.DragMove, =>
@@ -101,21 +104,16 @@ class BlockLens extends Lens
 		this.reflowHandle.draggable.enabled = true
 		this.reflowHandle.draggable.momentum = false
 		this.reflowHandle.draggable.vertical = false
-		this.reflowHandle.draggable.constraints = {x: -BlockLens.resizeHandleSize / 2, y: 0, width: BlockLens.blockSize * 10, height: 0}
+		this.reflowHandle.draggable.constraints = {x: -BlockLens.resizeHandleSize / 2, y: 0, width: BlockLens.blockSize * 10 + BlockLens.resizeHandleSize / 2, height: 0}
 		this.reflowHandle.draggable.overdrag = false
 		this.reflowHandle.draggable.propagateEvents = false
 		this.reflowHandle.on Events.DragMove, =>
 			startPoint = this.reflowHandle.draggable.layerStartPoint 
 			offset = this.reflowHandle.draggable.offset
-			this.layout.firstRowSkip = Math.round((startPoint.x + offset.x) / BlockLens.blockSize)
+			this.layout.firstRowSkip = utils.clip(Math.round((startPoint.x + offset.x) / BlockLens.blockSize), 0, 9)
 			this.update()
 		this.reflowHandle.on Events.DragEnd, =>
 			this.layoutReflowHandle true
-
-		
-		this.update()
-		this.layoutResizeHandle false
-		this.layoutReflowHandle false
 		
 		this.draggable.enabled = true
 		this.draggable.momentum = false
@@ -204,6 +202,26 @@ class BlockLens extends Lens
 				this.layout = this.originalLayout
 				
 			this.update(true)
+			
+		if enableBlockDigitLabels
+			this.digitLabel = new TextLayer
+				x: 42
+				fontFamily: "Helvetica"
+				text: this.value
+				parent: this
+				color: kaColors.math1
+				fontSize: 34
+				autoSize: true
+				backgroundColor: "rgba(255, 255, 255, 1.0)"
+				borderRadius: 5
+				textAlign: "center"
+				paddingTop: 5
+			this.digitLabel.width += 12
+			this.digitLabel.height += 5
+				
+		this.update()
+		this.layoutResizeHandle false
+		this.layoutReflowHandle false
 		
 	update: (animated) ->
 		this.style["-webkit-filter"] = switch this.layout.state 
@@ -227,7 +245,7 @@ class BlockLens extends Lens
 		this.height = this.blockLayers[this.value - 1].maxY
 
 		# Update the grid ticks:
-		if enableBlockGrid
+		if enableBlockGridTicks
 			this.onesTick.height = Math.floor((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns) * BlockLens.blockSize
 			# If the first row starts after 5, hide the ones tick.
 			if this.layout.firstRowSkip >= 5
@@ -240,6 +258,9 @@ class BlockLens extends Lens
 			this.onesTick.height += BlockLens.blockSize if lastRowLength >= 5
 			this.onesTick.visible = Math.min(this.value, this.layout.numberOfColumns) >= 5
 			tensTick.width = (BlockLens.blockSize * this.layout.numberOfColumns) for tensTick in this.tensTicks
+			
+		if enableBlockDigitLabels
+			this.digitLabel.midY = this.height / 2
 		
 		this.resizeHandle.visible = this.layout.state != "tentativeReceiving"
 
