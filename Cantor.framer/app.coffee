@@ -69,6 +69,9 @@ class BlockLens extends Lens
 					height: 2
 				this.tensTicks.push(tensTick)
 			
+		this.borderWidth = 1
+		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
+			
 		this.resizeHandle = new Layer
 			parent: this
 			width: BlockLens.resizeHandleSize
@@ -241,7 +244,7 @@ class BlockLens extends Lens
 				
 		# Resize lens to fit blocks.
 		contentFrame = this.contentFrame()
-		this.width = BlockLens.blockSize * utils.clip(this.value, 1, this.layout.numberOfColumns)
+		this.width = BlockLens.blockSize * this.layout.numberOfColumns
 		this.height = this.blockLayers[this.value - 1].maxY
 
 		# Update the grid ticks:
