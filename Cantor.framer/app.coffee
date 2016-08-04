@@ -281,7 +281,7 @@ class BlockLens extends Lens
 		if enableBlockDigitLabels
 			this.digitLabel.midY = this.height / 2
 		
-		this.resizeHandle.visible = selection == this and this.layout.state != "tentativeReceiving"
+		this.resizeHandle.visible = (selection == this) and (this.layout.state != "tentativeReceiving")
 
 	layoutResizeHandle: (animated) ->
 		this.resizeHandle.animate
