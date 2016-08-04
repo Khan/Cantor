@@ -15,6 +15,19 @@ enableBlockDigitLabels = false
 
 debugShowLensFrames = false
 
+# Canvas
+
+selection = null
+canvas = new Layer
+	backgroundColor: ""
+	width: Screen.width
+	height: Screen.height
+canvas.onTap -> selection?.setSelected(false)
+
+if enableBackgroundGrid
+	grid = new BackgroundLayer {parent: canvas}
+	grid.style["background"] = "url('images/grid.svg')"
+
 # Lenses
 
 class Lens extends Layer
@@ -69,7 +82,6 @@ class BlockLens extends Lens
 					height: 2
 				this.tensTicks.push(tensTick)
 			
-		this.borderWidth = 1
 		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
 			
 		this.resizeHandle = new Layer
@@ -206,6 +218,9 @@ class BlockLens extends Lens
 				
 			this.update(true)
 			
+		this.onTap =>
+			this.setSelected(true) unless this.draggable.isDragging
+			
 		if enableBlockDigitLabels
 			this.digitLabel = new TextLayer
 				x: 42
@@ -225,6 +240,7 @@ class BlockLens extends Lens
 		this.update()
 		this.layoutResizeHandle false
 		this.layoutReflowHandle false
+		this.setSelected(false)
 		
 	update: (animated) ->
 		this.style["-webkit-filter"] = switch this.layout.state 
@@ -265,7 +281,7 @@ class BlockLens extends Lens
 		if enableBlockDigitLabels
 			this.digitLabel.midY = this.height / 2
 		
-		this.resizeHandle.visible = this.layout.state != "tentativeReceiving"
+		this.resizeHandle.visible = selection == this and this.layout.state != "tentativeReceiving"
 
 	layoutResizeHandle: (animated) ->
 		this.resizeHandle.animate
@@ -279,7 +295,14 @@ class BlockLens extends Lens
 			properties:
 				x: Math.max(-BlockLens.resizeHandleSize / 2, this.reflowHandle.x)
 				y: (BlockLens.blockSize - BlockLens.resizeHandleSize) / 2
-			time: if animated then 0.1 else 0	
+			time: if animated then 0.1 else 0
+			
+	setSelected: (isSelected) ->
+		selection?.setSelected(false) if selection != this
+		this.borderWidth = if isSelected then 1 else 0
+		this.resizeHandle.visible = isSelected
+		this.reflowHandle.visible = isSelected
+		selection = this if isSelected
 
 class OperationLabel extends Layer
 	this.size = 50
@@ -316,16 +339,14 @@ class OperationLabel extends Layer
 			this.operandB.layout.state = "static"
 			this.operandB.update()	
 
+# Setup
+
 testBlock = new BlockLens
 	value: 8
-	x: 160
+	x: 200
 	y: 80
 	
 testBlock2 = new BlockLens
 	value: 35
-	x: 160
+	x: 200
 	y: 280
-
-if enableBackgroundGrid
-	grid = new BackgroundLayer
-	grid.style["background"] = "url('images/grid.svg')"
