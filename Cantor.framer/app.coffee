@@ -43,6 +43,8 @@ class Lens extends Layer
 class BlockLens extends Lens
 	this.blockSize = 40
 	this.resizeHandleSize = 60
+	this.interiorBorderColor = if enableBlockGrid then "rgba(85, 209, 229, 0.4)" else ""
+	this.interiorBorderWidth = if enableBlockGrid then 1 else 0
 		
 	constructor: (args) ->
 		super args
@@ -61,7 +63,7 @@ class BlockLens extends Lens
 				width: BlockLens.blockSize
 				height: BlockLens.blockSize
 				backgroundColor: kaColors.math1
-				borderColor: if enableBlockGrid then kaColors.math2 else ""
+				borderColor: BlockLens.interiorBorderColor
 				borderWidth: if enableBlockGrid then 1 else 0
 			this.blockLayers.push block
 				
@@ -257,7 +259,8 @@ class BlockLens extends Lens
 		for blockNumber in [0...this.value]
 			blockLayer = this.blockLayers[blockNumber]
 			indexForLayout = blockNumber + this.layout.firstRowSkip
-			newX = BlockLens.blockSize * (indexForLayout % this.layout.numberOfColumns)
+			columnNumber = indexForLayout % this.layout.numberOfColumns
+			newX = BlockLens.blockSize * columnNumber
 			rowNumber = Math.floor(indexForLayout / this.layout.numberOfColumns)
 			newY = BlockLens.blockSize * rowNumber
 			if (this.layout.rowSplitIndex != null) and (rowNumber >= this.layout.rowSplitIndex)
@@ -266,6 +269,19 @@ class BlockLens extends Lens
 				blockLayer.animate {properties: {x: newX, y: newY}, time: 0.15}
 			else
 				blockLayer.props = {x: newX, y: newY}
+				
+			# Update the borders:
+			heavyStrokeColor = kaColors.white
+			setBorder = (side, heavy) ->
+				blockLayer.style["border-#{side}-color"] = if heavy then heavyStrokeColor else BlockLens.interiorBorderColor
+				blockLayer.style["border-#{side}-width"] = if heavy then "2px" else BlockLens.interiorBorderWidth
+			
+			lastRow = Math.ceil((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns)
+			lastRowExtra = (this.value + this.layout.firstRowSkip) - (lastRow - 1) * this.layout.numberOfColumns
+			setBorder "left", columnNumber == 0 or blockNumber == 0
+			setBorder "top", rowNumber == 0 or (rowNumber == 1 and columnNumber < this.layout.firstRowSkip)
+			setBorder "bottom", rowNumber == (lastRow - 1) or (rowNumber == (lastRow - 2) and columnNumber >= lastRowExtra)
+			setBorder "right", columnNumber == this.layout.numberOfColumns - 1 or (rowNumber == (lastRow - 1) and columnNumber == (lastRowExtra - 1))
 				
 		# Resize lens to fit blocks.
 		contentFrame = this.contentFrame()
