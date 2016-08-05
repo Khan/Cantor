@@ -22,7 +22,8 @@ canvas = new Layer
 	backgroundColor: ""
 	width: Screen.width
 	height: Screen.height
-canvas.onTap -> selection?.setSelected(false)
+canvas.onTap (event, layer) ->
+	selection?.setSelected(false)
 
 if enableBackgroundGrid
 	grid = new BackgroundLayer {parent: canvas}
@@ -46,7 +47,9 @@ class BlockLens extends Lens
 	constructor: (args) ->
 		super args
 		
-		this.layout =
+		this.layout = if args.layout
+			args.layout
+		else
 			numberOfColumns: 10
 			firstRowSkip: 0
 			state: "static"
@@ -83,7 +86,9 @@ class BlockLens extends Lens
 				this.tensTicks.push(tensTick)
 			
 		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
-			
+		
+		this.wedge = new Wedge { parent: this }
+		
 		this.resizeHandle = new Layer
 			parent: this
 			width: BlockLens.resizeHandleSize
@@ -218,7 +223,8 @@ class BlockLens extends Lens
 				
 			this.update(true)
 			
-		this.onTap =>
+		this.onTap (event, layer) =>
+			event.stopPropagation()
 			this.setSelected(true) unless this.draggable.isDragging
 			
 		if enableBlockDigitLabels
@@ -252,9 +258,12 @@ class BlockLens extends Lens
 			blockLayer = this.blockLayers[blockNumber]
 			indexForLayout = blockNumber + this.layout.firstRowSkip
 			newX = BlockLens.blockSize * (indexForLayout % this.layout.numberOfColumns)
-			newY = BlockLens.blockSize * Math.floor(indexForLayout / this.layout.numberOfColumns)
+			rowNumber = Math.floor(indexForLayout / this.layout.numberOfColumns)
+			newY = BlockLens.blockSize * rowNumber
+			if (this.layout.rowSplitIndex != null) and (rowNumber >= this.layout.rowSplitIndex)
+				newY += Wedge.splitY
 			if animated
-				blockLayer.animate {properties: {x: newX, y: newY}, time: 0.15, delay: 0.008 * blockNumber}
+				blockLayer.animate {properties: {x: newX, y: newY}, time: 0.15}
 			else
 				blockLayer.props = {x: newX, y: newY}
 				
@@ -282,6 +291,9 @@ class BlockLens extends Lens
 			this.digitLabel.midY = this.height / 2
 		
 		this.resizeHandle.visible = (selection == this) and (this.layout.state != "tentativeReceiving")
+		
+		if not this.wedge.draggable.isDragging
+			this.wedge.x = this.width + Wedge.restingX
 
 	layoutResizeHandle: (animated) ->
 		this.resizeHandle.animate
@@ -302,6 +314,7 @@ class BlockLens extends Lens
 		this.borderWidth = if isSelected then 1 else 0
 		this.resizeHandle.visible = isSelected
 		this.reflowHandle.visible = isSelected
+		this.wedge.visible = isSelected
 		selection = this if isSelected
 
 class OperationLabel extends Layer
@@ -339,14 +352,77 @@ class OperationLabel extends Layer
 			this.operandB.layout.state = "static"
 			this.operandB.update()	
 
+class Wedge extends Layer
+	this.restingX = 30
+	this.splitY = 30
+
+	constructor: (args) ->
+		throw "Requires parent layer" if args.parent == null
+		super args
+		this.props =
+			image: "images/triangle@2x.png"
+			width: 80
+			height: 40
+			backgroundColor: ""
+			x: Wedge.restingX
+			scaleX: -1
+			
+		this.draggable.enabled = true
+		this.draggable.momentum = false
+		this.draggable.propagateEvents = false
+		
+		this.draggable.on Events.DragMove, (event) =>
+			this.parent.layout.rowSplitIndex = if this.minX <= this.parent.width
+				Math.round(this.midY / BlockLens.blockSize)
+			else
+				null
+			this.parent.update(true)
+			
+		this.draggable.on Events.DragEnd, (event) =>
+			if (this.minX <= this.parent.width) and (this.parent.layout.rowSplitIndex > 0)
+				newValueA = Math.min(this.parent.layout.rowSplitIndex * this.parent.layout.numberOfColumns - this.parent.layout.firstRowSkip, this.parent.value)
+				newValueB = this.parent.value - newValueA
+				
+				this.parent.layout.rowSplitIndex = null
+				
+				newBlockA = new BlockLens
+					value: newValueA
+					parent: this.parent.parent
+					x: this.parent.x
+					y: this.parent.y
+					layout: this.parent.layout
+				
+				newBlockB = new BlockLens
+					value: newValueB
+					parent: this.parent.parent
+					x: this.parent.x
+					y: newBlockA.maxY + Wedge.splitY
+					layout: this.parent.layout
+				newBlockB.layout.firstRowSkip = 0
+				newBlockB.update()
+				
+				this.parent.destroy()
+			else
+				this.animate { properties: { x: this.parent.width + Wedge.restingX }, time: 0.2 }
+			
+		this.onTap (event) -> event.stopPropagation()
+
 # Setup
 
 testBlock = new BlockLens
-	value: 8
+	value: 18
+	parent: canvas
 	x: 200
 	y: 80
 	
 testBlock2 = new BlockLens
 	value: 35
+	parent: canvas
 	x: 200
 	y: 280
+
+testBlock2 = new BlockLens
+	value: 82
+	parent: canvas
+	x: 200
+	y: 600
