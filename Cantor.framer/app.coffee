@@ -274,7 +274,7 @@ class BlockLens extends Lens
 			heavyStrokeColor = kaColors.white
 			setBorder = (side, heavy) ->
 				blockLayer.style["border-#{side}-color"] = if heavy then heavyStrokeColor else BlockLens.interiorBorderColor
-				blockLayer.style["border-#{side}-width"] = if heavy then "2px" else BlockLens.interiorBorderWidth
+				blockLayer.style["border-#{side}-width"] = if heavy then "2px" else "#{BlockLens.interiorBorderWidth}px"
 			
 			lastRow = Math.ceil((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns)
 			lastRowExtra = (this.value + this.layout.firstRowSkip) - (lastRow - 1) * this.layout.numberOfColumns
