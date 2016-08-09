@@ -59,7 +59,7 @@ class BlockLens extends Lens
 		super args
 		
 		this.layout = if args.layout
-			args.layout
+			Object.assign({}, args.layout)
 		else
 			numberOfColumns: 10
 			firstRowSkip: 0
@@ -342,6 +342,30 @@ class BlockLens extends Lens
 		this.reflowHandle.visible = isSelected
 		this.wedge.visible = isSelected
 		selection = this if isSelected
+		
+	splitAt: (rowSplitIndex) ->
+		newValueA = Math.min(rowSplitIndex * this.layout.numberOfColumns - this.layout.firstRowSkip, this.value)
+		newValueB = this.value - newValueA
+		
+		this.layout.rowSplitIndex = null
+		
+		newBlockA = new BlockLens
+			value: newValueA
+			parent: this.parent
+			x: this.x
+			y: this.y
+			layout: this.layout
+		
+		this.layout.firstRowSkip = 0
+		newBlockB = new BlockLens
+			value: newValueB
+			parent: this.parent
+			x: this.x
+			y: newBlockA.maxY + Wedge.splitY
+			layout: this.layout
+		
+		this.destroy()
+
 
 class OperationLabel extends Layer
 	this.size = 50
@@ -406,28 +430,7 @@ class Wedge extends Layer
 			
 		this.draggable.on Events.DragEnd, (event) =>
 			if (this.minX <= this.parent.width) and (this.parent.layout.rowSplitIndex > 0)
-				newValueA = Math.min(this.parent.layout.rowSplitIndex * this.parent.layout.numberOfColumns - this.parent.layout.firstRowSkip, this.parent.value)
-				newValueB = this.parent.value - newValueA
-				
-				this.parent.layout.rowSplitIndex = null
-				
-				newBlockA = new BlockLens
-					value: newValueA
-					parent: this.parent.parent
-					x: this.parent.x
-					y: this.parent.y
-					layout: this.parent.layout
-				
-				newBlockB = new BlockLens
-					value: newValueB
-					parent: this.parent.parent
-					x: this.parent.x
-					y: newBlockA.maxY + Wedge.splitY
-					layout: this.parent.layout
-				newBlockB.layout.firstRowSkip = 0
-				newBlockB.update()
-				
-				this.parent.destroy()
+				this.parent.splitAt(this.parent.layout.rowSplitIndex)
 			else
 				this.animate { properties: { x: this.parent.width + Wedge.restingX }, time: 0.2 }
 			
@@ -438,7 +441,7 @@ class Wedge extends Layer
 startingOffset = 40 * 60
 setup = ->
 	testBlock = new BlockLens
-		value: 100
+		value: 37
 		parent: canvas
 		x: 200
 		y: 80
