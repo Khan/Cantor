@@ -144,7 +144,8 @@ class BlockLens extends Lens
 			this.layout.firstRowSkip = utils.clip(Math.round((startPoint.x + offset.x) / BlockLens.blockSize), 0, 9)
 			this.update()
 		this.reflowHandle.on Events.DragEnd, =>
-			this.layoutReflowHandle true
+			this.splitAt(1)
+# 			this.layoutReflowHandle true
 		
 		this.draggable.enabled = true
 		this.draggable.momentum = false
@@ -347,6 +348,7 @@ class BlockLens extends Lens
 		newValueA = Math.min(rowSplitIndex * this.layout.numberOfColumns - this.layout.firstRowSkip, this.value)
 		newValueB = this.value - newValueA
 		
+		needsAnimation = this.layout.rowSplitIndex != null
 		this.layout.rowSplitIndex = null
 		
 		newBlockA = new BlockLens
@@ -357,12 +359,18 @@ class BlockLens extends Lens
 			layout: this.layout
 		
 		this.layout.firstRowSkip = 0
+		
 		newBlockB = new BlockLens
 			value: newValueB
 			parent: this.parent
 			x: this.x
-			y: newBlockA.maxY + Wedge.splitY
+			y: newBlockA.maxY + if needsAnimation then 0 else Wedge.splitY
 			layout: this.layout
+			
+		if needsAnimation
+			newBlockB.animate
+				properties: {y: newBlockA.maxY + Wedge.splitY}
+				time: 0.2
 		
 		this.destroy()
 
