@@ -18,16 +18,25 @@ debugShowLensFrames = false
 # Canvas
 
 selection = null
-canvas = new Layer
+canvasComponent = new ScrollComponent
 	backgroundColor: ""
 	width: Screen.width
 	height: Screen.height
+canvas = canvasComponent.content
 canvas.onTap (event, layer) ->
-	selection?.setSelected(false)
+	selection?.setSelected(false) if not layer.draggable.isDragging
+canvasComponent.content.pinchable.enabled = true
+canvasComponent.content.pinchable.minScale = 0.5
+canvasComponent.content.pinchable.maxScale = 2
+canvasComponent.content.pinchable.rotate = false
 
 if enableBackgroundGrid
-	grid = new BackgroundLayer {parent: canvas}
+	grid = new Layer 
+		parent: canvas
+		width: Screen.width * 10
+		height: Screen.height * 10
 	grid.style["background"] = "url('images/grid.svg')"
+	canvasComponent.updateContent()
 
 # Lenses
 
@@ -139,6 +148,7 @@ class BlockLens extends Lens
 		
 		this.draggable.enabled = true
 		this.draggable.momentum = false
+		this.draggable.propagateEvents = false
 		
 		this.originalLayout = this.layout
 		this.operationLabel = null
@@ -425,20 +435,41 @@ class Wedge extends Layer
 
 # Setup
 
-testBlock = new BlockLens
-	value: 18
-	parent: canvas
-	x: 200
-	y: 80
+startingOffset = 40 * 60
+setup = ->
+	testBlock = new BlockLens
+		value: 100
+		parent: canvas
+		x: 200
+		y: 80
+		
+	# testBlock2 = new BlockLens
+	# 	value: 64
+	# 	parent: canvas
+	# 	x: 200
+	# 	y: 280
 	
-testBlock2 = new BlockLens
-	value: 35
-	parent: canvas
-	x: 200
-	y: 280
+	# testBlock2 = new BlockLens
+	# 	value: 82
+	# 	parent: canvas
+	# 	x: 200
+	# 	y: 600
+	
+	for sublayer in canvas.subLayers
+		continue unless (sublayer instanceof BlockLens)
+		sublayer.x += startingOffset
+		sublayer.y += startingOffset
+		
+setup()
 
-testBlock2 = new BlockLens
-	value: 82
-	parent: canvas
-	x: 200
-	y: 600
+canvasComponent.scrollX = startingOffset
+canvasComponent.scrollY = startingOffset
+grid.x -= startingOffset
+grid.y -= startingOffset
+
+grid.onDoubleTap (event) =>
+	if event.fingers > 1
+		for layer in canvas.subLayers
+			continue unless (layer instanceof BlockLens)
+			layer.destroy()
+		setup()
