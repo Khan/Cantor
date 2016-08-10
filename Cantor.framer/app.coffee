@@ -293,7 +293,7 @@ class BlockLens extends Lens
 			lastRow = Math.ceil((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns)
 			lastRowExtra = (this.value + this.layout.firstRowSkip) - (lastRow - 1) * this.layout.numberOfColumns
 			if blockNumber < this.value
-				isOnes = (rowNumber == (lastRow - 1) and lastRowExtra < 10) or (this.layout.firstRowSkip > 0 and rowNumber == 0)
+				isOnes = (rowNumber == (lastRow - 1) and lastRowExtra < this.layout.numberOfColumns) or (this.layout.firstRowSkip > 0 and rowNumber == 0)
 				setBorder "left", columnNumber == 0 or blockNumber == 0, (not isOnes)
 				setBorder "top", rowNumber == 0 or (rowNumber == 1 and columnNumber < this.layout.firstRowSkip)
 				setBorder "bottom", rowNumber == (lastRow - 1) or (rowNumber == (lastRow - 2) and columnNumber >= lastRowExtra)
