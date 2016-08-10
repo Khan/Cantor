@@ -66,7 +66,7 @@ class BlockLens extends Lens
 			state: "static"
 		
 		this.blockLayers = []
-		for blockNumber in [0...this.value]
+		for blockNumber in [0...this.value + 4]
 			block = new Layer
 				parent: this
 				width: BlockLens.blockSize
@@ -74,6 +74,9 @@ class BlockLens extends Lens
 				backgroundColor: kaColors.math1
 				borderColor: BlockLens.interiorBorderColor
 				borderWidth: if enableBlockGrid then 1 else 0
+			if blockNumber >= this.value
+				block.style["border"] = "2px dashed #ddd"
+				block.backgroundColor = ""
 			this.blockLayers.push block
 				
 		if enableBlockGridTicks
@@ -266,13 +269,14 @@ class BlockLens extends Lens
 				"drop-shadow(0px 0px 15px #{kaColors.math1})"
 			else null
 					
-		for blockNumber in [0...this.value]
+		for blockNumber in [0...this.blockLayers.length]
 			blockLayer = this.blockLayers[blockNumber]
 			indexForLayout = blockNumber + this.layout.firstRowSkip
 			columnNumber = indexForLayout % this.layout.numberOfColumns
 			newX = BlockLens.blockSize * columnNumber
 			rowNumber = Math.floor(indexForLayout / this.layout.numberOfColumns)
 			newY = BlockLens.blockSize * rowNumber
+			
 			if (this.layout.rowSplitIndex != null) and (rowNumber >= this.layout.rowSplitIndex)
 				newY += Wedge.splitY
 			if animated
@@ -282,16 +286,20 @@ class BlockLens extends Lens
 				
 			# Update the borders:
 			heavyStrokeColor = kaColors.white
-			setBorder = (side, heavy) ->
+			setBorder = (side, heavy, hidden) ->
 				blockLayer.style["border-#{side}-color"] = if heavy then heavyStrokeColor else BlockLens.interiorBorderColor
-				blockLayer.style["border-#{side}-width"] = if heavy then "2px" else "#{BlockLens.interiorBorderWidth}px"
+				blockLayer.style["border-#{side}-width"] = if heavy then "2px" else if hidden then "0px" else "#{BlockLens.interiorBorderWidth}px"
 			
 			lastRow = Math.ceil((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns)
 			lastRowExtra = (this.value + this.layout.firstRowSkip) - (lastRow - 1) * this.layout.numberOfColumns
-			setBorder "left", columnNumber == 0 or blockNumber == 0
-			setBorder "top", rowNumber == 0 or (rowNumber == 1 and columnNumber < this.layout.firstRowSkip)
-			setBorder "bottom", rowNumber == (lastRow - 1) or (rowNumber == (lastRow - 2) and columnNumber >= lastRowExtra)
-			setBorder "right", columnNumber == this.layout.numberOfColumns - 1 or (rowNumber == (lastRow - 1) and columnNumber == (lastRowExtra - 1))
+			if blockNumber < this.value
+				isOnes = (rowNumber == (lastRow - 1) and lastRowExtra < 10) or (this.layout.firstRowSkip > 0 and rowNumber == 0)
+				setBorder "left", columnNumber == 0 or blockNumber == 0, (not isOnes)
+				setBorder "top", rowNumber == 0 or (rowNumber == 1 and columnNumber < this.layout.firstRowSkip)
+				setBorder "bottom", rowNumber == (lastRow - 1) or (rowNumber == (lastRow - 2) and columnNumber >= lastRowExtra)
+				setBorder "right", columnNumber == this.layout.numberOfColumns - 1 or (rowNumber == (lastRow - 1) and columnNumber == (lastRowExtra - 1)), (not isOnes)
+			
+			blockLayer.visible = (blockNumber < this.value) or (lastRowExtra > 5 and columnNumber > 5)
 				
 		# Resize lens to fit blocks.
 		contentFrame = this.contentFrame()
