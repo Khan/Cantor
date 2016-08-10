@@ -144,7 +144,7 @@ class BlockLens extends Lens
 			this.layout.firstRowSkip = utils.clip(Math.round((startPoint.x + offset.x) / BlockLens.blockSize), 0, 9)
 			this.update()
 		this.reflowHandle.on Events.DragEnd, =>
-			this.splitAt(1)
+			this.splitAt(1) if this.layout.firstRowSkip > 0
 # 			this.layoutReflowHandle true
 		
 		this.draggable.enabled = true
@@ -454,11 +454,11 @@ setup = ->
 		x: 200
 		y: 80
 		
-	# testBlock2 = new BlockLens
-	# 	value: 64
-	# 	parent: canvas
-	# 	x: 200
-	# 	y: 280
+	testBlock2 = new BlockLens
+		value: 64
+		parent: canvas
+		x: 200
+		y: 280
 	
 	# testBlock2 = new BlockLens
 	# 	value: 82
