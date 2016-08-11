@@ -15,6 +15,29 @@ enableBlockDigitLabels = false
 
 debugShowLensFrames = false
 
+# Canvas
+
+selection = null
+canvasComponent = new ScrollComponent
+	backgroundColor: ""
+	width: Screen.width
+	height: Screen.height
+canvas = canvasComponent.content
+canvas.onTap (event, layer) ->
+	selection?.setSelected(false) if not layer.draggable.isDragging
+canvasComponent.content.pinchable.enabled = true
+canvasComponent.content.pinchable.minScale = 0.5
+canvasComponent.content.pinchable.maxScale = 2
+canvasComponent.content.pinchable.rotate = false
+
+if enableBackgroundGrid
+	grid = new Layer 
+		parent: canvas
+		width: Screen.width * 10
+		height: Screen.height * 10
+	grid.style["background"] = "url('images/grid.svg')"
+	canvasComponent.updateContent()
+
 # Lenses
 
 class Lens extends Layer
@@ -29,11 +52,15 @@ class Lens extends Layer
 class BlockLens extends Lens
 	this.blockSize = 40
 	this.resizeHandleSize = 60
+	this.interiorBorderColor = if enableBlockGrid then "rgba(85, 209, 229, 0.4)" else ""
+	this.interiorBorderWidth = if enableBlockGrid then 1 else 0
 		
 	constructor: (args) ->
 		super args
 		
-		this.layout =
+		this.layout = if args.layout
+			Object.assign({}, args.layout)
+		else
 			numberOfColumns: 10
 			firstRowSkip: 0
 			state: "static"
@@ -45,7 +72,7 @@ class BlockLens extends Lens
 				width: BlockLens.blockSize
 				height: BlockLens.blockSize
 				backgroundColor: kaColors.math1
-				borderColor: if enableBlockGrid then kaColors.math2 else ""
+				borderColor: BlockLens.interiorBorderColor
 				borderWidth: if enableBlockGrid then 1 else 0
 			this.blockLayers.push block
 				
@@ -69,9 +96,10 @@ class BlockLens extends Lens
 					height: 2
 				this.tensTicks.push(tensTick)
 			
-		this.borderWidth = 1
 		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
-			
+		
+		this.wedge = new Wedge { parent: this }
+		
 		this.resizeHandle = new Layer
 			parent: this
 			width: BlockLens.resizeHandleSize
@@ -135,6 +163,7 @@ class BlockLens extends Lens
 		
 		this.draggable.enabled = true
 		this.draggable.momentum = false
+		this.draggable.propagateEvents = false
 		
 		this.originalLayout = this.layout
 		this.operationLabel = null
@@ -221,6 +250,10 @@ class BlockLens extends Lens
 				
 			this.update(true)
 			
+		this.onTap (event, layer) =>
+			event.stopPropagation()
+			this.setSelected(true) unless this.draggable.isDragging
+			
 		if enableBlockDigitLabels
 			this.digitLabel = new TextLayer
 				x: 42
@@ -240,6 +273,7 @@ class BlockLens extends Lens
 		this.update()
 		this.layoutResizeHandle false
 		this.layoutReflowHandle false
+		this.setSelected(false)
 		
 	update: (animated) ->
 		this.style["-webkit-filter"] = switch this.layout.state 
@@ -250,12 +284,29 @@ class BlockLens extends Lens
 		for blockNumber in [0...this.value]
 			blockLayer = this.blockLayers[blockNumber]
 			indexForLayout = blockNumber + this.layout.firstRowSkip
-			newX = BlockLens.blockSize * (indexForLayout % this.layout.numberOfColumns)
-			newY = BlockLens.blockSize * Math.floor(indexForLayout / this.layout.numberOfColumns)
+			columnNumber = indexForLayout % this.layout.numberOfColumns
+			newX = BlockLens.blockSize * columnNumber
+			rowNumber = Math.floor(indexForLayout / this.layout.numberOfColumns)
+			newY = BlockLens.blockSize * rowNumber
+			if (this.layout.rowSplitIndex != null) and (rowNumber >= this.layout.rowSplitIndex)
+				newY += Wedge.splitY
 			if animated
-				blockLayer.animate {properties: {x: newX, y: newY}, time: 0.15, delay: 0.008 * blockNumber}
+				blockLayer.animate {properties: {x: newX, y: newY}, time: 0.15}
 			else
 				blockLayer.props = {x: newX, y: newY}
+				
+			# Update the borders:
+			heavyStrokeColor = kaColors.white
+			setBorder = (side, heavy) ->
+				blockLayer.style["border-#{side}-color"] = if heavy then heavyStrokeColor else BlockLens.interiorBorderColor
+				blockLayer.style["border-#{side}-width"] = if heavy then "2px" else "#{BlockLens.interiorBorderWidth}px"
+			
+			lastRow = Math.ceil((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns)
+			lastRowExtra = (this.value + this.layout.firstRowSkip) - (lastRow - 1) * this.layout.numberOfColumns
+			setBorder "left", columnNumber == 0 or blockNumber == 0
+			setBorder "top", rowNumber == 0 or (rowNumber == 1 and columnNumber < this.layout.firstRowSkip)
+			setBorder "bottom", rowNumber == (lastRow - 1) or (rowNumber == (lastRow - 2) and columnNumber >= lastRowExtra)
+			setBorder "right", columnNumber == this.layout.numberOfColumns - 1 or (rowNumber == (lastRow - 1) and columnNumber == (lastRowExtra - 1))
 				
 		# Resize lens to fit blocks.
 		contentFrame = this.contentFrame()
@@ -280,7 +331,10 @@ class BlockLens extends Lens
 		if enableBlockDigitLabels
 			this.digitLabel.midY = this.height / 2
 		
-		this.resizeHandle.visible = this.layout.state != "tentativeReceiving"
+		this.resizeHandle.visible = (selection == this) and (this.layout.state != "tentativeReceiving")
+		
+		if not this.wedge.draggable.isDragging
+			this.wedge.x = this.width + Wedge.restingX
 
 	layoutResizeHandle: (animated) ->
 		this.resizeHandle.animate
@@ -292,9 +346,47 @@ class BlockLens extends Lens
 	layoutReflowHandle: (animated) ->
 		this.reflowHandle.animate
 			properties:
+<<<<<<< ours
 				x: (this.width - BlockLens.resizeHandleSize) / 2
 				y: (this.height - BlockLens.resizeHandleSize) / 2
 			time: if animated then 0.1 else 0	
+=======
+				x: Math.max(-BlockLens.resizeHandleSize / 2, this.reflowHandle.x)
+				y: (BlockLens.blockSize - BlockLens.resizeHandleSize) / 2
+			time: if animated then 0.1 else 0
+			
+	setSelected: (isSelected) ->
+		selection?.setSelected(false) if selection != this
+		this.borderWidth = if isSelected then 1 else 0
+		this.resizeHandle.visible = isSelected
+		this.reflowHandle.visible = isSelected
+		this.wedge.visible = isSelected
+		selection = this if isSelected
+		
+	splitAt: (rowSplitIndex) ->
+		newValueA = Math.min(rowSplitIndex * this.layout.numberOfColumns - this.layout.firstRowSkip, this.value)
+		newValueB = this.value - newValueA
+		
+		this.layout.rowSplitIndex = null
+		
+		newBlockA = new BlockLens
+			value: newValueA
+			parent: this.parent
+			x: this.x
+			y: this.y
+			layout: this.layout
+		
+		this.layout.firstRowSkip = 0
+		newBlockB = new BlockLens
+			value: newValueB
+			parent: this.parent
+			x: this.x
+			y: newBlockA.maxY + Wedge.splitY
+			layout: this.layout
+		
+		this.destroy()
+
+>>>>>>> theirs
 
 class OperationLabel extends Layer
 	this.size = 50
@@ -331,16 +423,83 @@ class OperationLabel extends Layer
 			this.operandB.layout.state = "static"
 			this.operandB.update()	
 
-testBlock = new BlockLens
-	value: 8
-	x: 160
-	y: 80
-	
-testBlock2 = new BlockLens
-	value: 35
-	x: 160
-	y: 280
+class Wedge extends Layer
+	this.restingX = 30
+	this.splitY = 30
 
+	constructor: (args) ->
+		throw "Requires parent layer" if args.parent == null
+		super args
+		this.props =
+			image: "images/triangle@2x.png"
+			width: 80
+			height: 40
+			backgroundColor: ""
+			x: Wedge.restingX
+			scaleX: -1
+			
+		this.draggable.enabled = true
+		this.draggable.momentum = false
+		this.draggable.propagateEvents = false
+		
+		this.draggable.on Events.DragMove, (event) =>
+			this.parent.layout.rowSplitIndex = if this.minX <= this.parent.width
+				Math.round(this.midY / BlockLens.blockSize)
+			else
+				null
+			this.parent.update(true)
+			
+		this.draggable.on Events.DragEnd, (event) =>
+			if (this.minX <= this.parent.width) and (this.parent.layout.rowSplitIndex > 0)
+				this.parent.splitAt(this.parent.layout.rowSplitIndex)
+			else
+				this.animate { properties: { x: this.parent.width + Wedge.restingX }, time: 0.2 }
+			
+		this.onTap (event) -> event.stopPropagation()
+
+# Setup
+
+startingOffset = 40 * 60
+setup = ->
+	testBlock = new BlockLens
+		value: 37
+		parent: canvas
+		x: 200
+		y: 80
+		
+	# testBlock2 = new BlockLens
+	# 	value: 64
+	# 	parent: canvas
+	# 	x: 200
+	# 	y: 280
+	
+	# testBlock2 = new BlockLens
+	# 	value: 82
+	# 	parent: canvas
+	# 	x: 200
+	# 	y: 600
+	
+	for sublayer in canvas.subLayers
+		continue unless (sublayer instanceof BlockLens)
+		sublayer.x += startingOffset
+		sublayer.y += startingOffset
+		
+setup()
+
+<<<<<<< ours
 if enableBackgroundGrid
 	grid = new BackgroundLayer
 	grid.style["background"] = "url('images/grid.svg')"
+=======
+canvasComponent.scrollX = startingOffset
+canvasComponent.scrollY = startingOffset
+grid.x -= startingOffset
+grid.y -= startingOffset
+
+grid.onDoubleTap (event) =>
+	if event.fingers > 1
+		for layer in canvas.subLayers
+			continue unless (layer instanceof BlockLens)
+			layer.destroy()
+		setup()
+>>>>>>> theirs
