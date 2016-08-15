@@ -13,7 +13,7 @@ enableBlockGrid = true
 enableBlockGridTicks = false
 enableBlockDigitLabels = false
 
-enableHighContrastGrid = true
+enableHighContrastGrid = false
 
 debugShowLensFrames = false
 
@@ -448,11 +448,11 @@ setup = ->
 		x: 200
 		y: 80
 		
-	# testBlock2 = new BlockLens
-	# 	value: 64
-	# 	parent: canvas
-	# 	x: 200
-	# 	y: 280
+	testBlock2 = new BlockLens
+		value: 15
+		parent: canvas
+		x: 200
+		y: 280
 	
 	# testBlock2 = new BlockLens
 	# 	value: 82
