@@ -13,6 +13,8 @@ enableBlockGrid = true
 enableBlockGridTicks = false
 enableBlockDigitLabels = false
 
+enableHighContrastGrid = true
+
 debugShowLensFrames = false
 
 # Canvas
@@ -35,7 +37,7 @@ if enableBackgroundGrid
 		parent: canvas
 		width: Screen.width * 10
 		height: Screen.height * 10
-	grid.style["background"] = "url('images/grid.svg')"
+	grid.style["background"] = "url('images/#{if enableHighContrastGrid then "grid-high-contrast.svg" else "grid.svg"}')"
 	canvasComponent.updateContent()
 
 # Lenses
