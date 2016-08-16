@@ -54,11 +54,14 @@ class Lens extends Layer
 class BlockLens extends Lens
 	this.blockSize = 40
 	this.resizeHandleSize = 60
-	this.interiorBorderColor = if enableBlockGrid then "rgba(85, 209, 229, 0.4)" else ""
+	this.defaultInteriorBorderColor = if enableBlockGrid then "rgba(85, 209, 229, 0.4)" else ""
 	this.interiorBorderWidth = if enableBlockGrid then 1 else 0
 		
 	constructor: (args) ->
 		super args
+		
+		this.interiorBackgroundColor = args.backgroundColor || kaColors.math1
+		this.interiorBorderColor = args.interiorBorderColor || BlockLens.defaultInteriorBorderColor
 		
 		this.layout = if args.layout
 			Object.assign({}, args.layout)
@@ -73,8 +76,8 @@ class BlockLens extends Lens
 				parent: this
 				width: BlockLens.blockSize
 				height: BlockLens.blockSize
-				backgroundColor: kaColors.math1
-				borderColor: BlockLens.interiorBorderColor
+				backgroundColor: this.interiorBackgroundColor
+				borderColor: this.interiorBorderColor
 				borderWidth: if enableBlockGrid then 1 else 0
 			this.blockLayers.push block
 				
@@ -107,7 +110,7 @@ class BlockLens extends Lens
 			width: BlockLens.resizeHandleSize
 			height: BlockLens.resizeHandleSize
 			borderRadius: BlockLens.resizeHandleSize / 2.0
-			borderColor: kaColors.math2
+			borderColor: this.interiorBorderColor
 			borderWidth: 6
 			backgroundColor: ""
 			
@@ -129,7 +132,7 @@ class BlockLens extends Lens
 			width: BlockLens.resizeHandleSize
 			height: BlockLens.resizeHandleSize
 			borderRadius: BlockLens.resizeHandleSize / 2.0
-			borderColor: kaColors.math2
+			borderColor: this.interiorBorderColor
 			borderWidth: 6
 			backgroundColor: ""
 			x: -BlockLens.resizeHandleSize / 2.0
@@ -284,8 +287,8 @@ class BlockLens extends Lens
 				
 			# Update the borders:
 			heavyStrokeColor = kaColors.white
-			setBorder = (side, heavy) ->
-				blockLayer.style["border-#{side}-color"] = if heavy then heavyStrokeColor else BlockLens.interiorBorderColor
+			setBorder = (side, heavy) =>
+				blockLayer.style["border-#{side}-color"] = if heavy then heavyStrokeColor else this.interiorBorderColor
 				blockLayer.style["border-#{side}-width"] = if heavy then "2px" else "#{BlockLens.interiorBorderWidth}px"
 			
 			lastRow = Math.ceil((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns)
@@ -357,6 +360,8 @@ class BlockLens extends Lens
 			x: this.x
 			y: this.y
 			layout: this.layout
+			backgroundColor: this.interiorBackgroundColor
+			interiorBorderColor: this.interiorBorderColor
 		
 		this.layout.firstRowSkip = 0
 		newBlockB = new BlockLens
@@ -365,6 +370,8 @@ class BlockLens extends Lens
 			x: this.x
 			y: newBlockA.maxY + Wedge.splitY
 			layout: this.layout
+			backgroundColor: this.interiorBackgroundColor
+			interiorBorderColor: this.interiorBorderColor
 		
 		this.destroy()
 
@@ -453,12 +460,16 @@ setup = ->
 		parent: canvas
 		x: 200
 		y: 280
+		backgroundColor: kaColors.economics1
+		interiorBorderColor: kaColors.economics2
 	
-	# testBlock2 = new BlockLens
-	# 	value: 82
-	# 	parent: canvas
-	# 	x: 200
-	# 	y: 600
+	testBlock2 = new BlockLens
+		value: 41
+		parent: canvas
+		x: 200
+		y: 600
+		backgroundColor: kaColors.cs1
+		interiorBorderColor: kaColors.cs2
 	
 	for sublayer in canvas.subLayers
 		continue unless (sublayer instanceof BlockLens)
