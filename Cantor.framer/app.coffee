@@ -438,6 +438,109 @@ class Wedge extends Layer
 			
 		this.onTap (event) -> event.stopPropagation()
 
+# Controls
+
+class GlobalButton extends Layer
+	constructor: (args) ->
+		super args
+		props =
+			backgroundColor: kaColors.white
+			borderColor: kaColors.gray76
+			borderRadius: 4
+			borderWidth: 1
+			width: 100
+			height: 100
+		Object.assign(props, args)
+		this.props = props
+		this.action = args.action
+		
+		originalBackgroundColor = this.backgroundColor
+		this.onTouchStart ->
+			this.backgroundColor = kaColors.gray95
+		# TODO implement proper button hit-testing-on-move behavior
+		this.onTouchEnd ->
+			this.backgroundColor = originalBackgroundColor
+			this.action?()
+			
+addBlockPromptLabel = new Layer
+	width: Screen.width
+	backgroundColor: kaColors.cs1
+	height: 88
+	y: -88
+addBlockPromptLabelText = new TextLayer
+	parent: addBlockPromptLabel
+	text: "Touch and drag to add a value"
+	textAlign: "center"
+	fontSize: 40
+	color: kaColors.white
+	autoSize: true
+	y: Align.center()
+	width: Screen.width
+			
+addButton = new GlobalButton
+	x: Align.right(-20)
+	y: Align.bottom(-20)
+	action: ->
+		setIsAdding(not isAdding)
+			 
+isAdding = null
+setIsAdding = (newIsAdding) ->
+	return if newIsAdding == isAdding
+	isAdding = newIsAdding
+	if isAdding
+		canvasComponent.scroll = false
+	else
+		canvasComponent.scroll = true
+	addBlockPromptLabel.animate
+		properties: {y: if isAdding then 0 else -addBlockPromptLabel.height}
+		time: 0.2
+	addButton.html = "<div style='color: #{kaColors.math1}; font-size: 70px; text-align: center; margin: 25% 0%'>#{if isAdding then 'x' else '+'}</div>"
+		
+setIsAdding(false)
+
+pendingBlockToAdd = null
+pendingBlockToAddLabel = new TextLayer
+	fontFamily: "Helvetica"
+	parent: canvas
+	color: kaColors.math1
+	fontSize: 72
+	autoSize: true
+	backgroundColor: "rgba(255, 255, 255, 1.0)"
+	borderRadius: 4
+	textAlign: "center"
+	paddingTop: 5
+		
+canvas.onPan (event) ->
+	return unless isAdding
+	
+	value = 10 * Math.max(0, Math.floor((event.point.y - event.start.y) / BlockLens.blockSize)) + utils.clip(Math.ceil((event.point.x - event.start.x) / BlockLens.blockSize), 0, 10)
+	value = Math.max(1, value)
+	return if value == pendingBlockToAdd?.value
+	
+	startingLocation = Screen.convertPointToLayer(event.start, canvas)
+	startingLocation.x = Math.round(startingLocation.x / BlockLens.blockSize) * BlockLens.blockSize
+	startingLocation.y = Math.round(startingLocation.y / BlockLens.blockSize) * BlockLens.blockSize - BlockLens.blockSize * 2
+	pendingBlockToAdd?.destroy()
+	pendingBlockToAdd = new BlockLens
+		parent: canvas
+		x: startingLocation.x
+		y: startingLocation.y
+		value: value
+	pendingBlockToAdd.borderWidth = 1
+	
+	pendingBlockToAddLabel.visible = true
+	pendingBlockToAddLabel.text = pendingBlockToAdd.value
+	pendingBlockToAddLabel.midX = startingLocation.x + BlockLens.blockSize * 5
+	pendingBlockToAddLabel.y = startingLocation.y - 100
+		
+canvas.onTouchEnd ->
+	return unless isAdding
+	pendingBlockToAdd?.borderWidth = 0
+	pendingBlockToAdd = null
+	
+	pendingBlockToAddLabel.visible = false
+	setIsAdding false
+			
 # Setup
 
 startingOffset = 40 * 60
