@@ -152,91 +152,16 @@ class BlockLens extends Lens
 		this.draggable.momentum = false
 		this.draggable.propagateEvents = false
 		
-		this.originalLayout = this.layout
-		this.operationLabel = null
-		
-		this.draggable.on Events.DragStart, =>
-			this.originalLayout = this.layout
-			
-			if not this.operationLabel
-				this.operationLabel = new OperationLabel {opacity: 0}
-				this.operationLabel.operandB = this
-				
+		this.draggable.on Events.DragStart, =>	
 			this.bringToFront()
-		
-		this.draggable.on Events.DragMove, (event) =>
-			return if not enableAdditionExpressionForming
-		
-			intersectsWithRange = (otherLayer) =>
-				nearFrame = Utils.frameInset(otherLayer.frame, -80)
-				return utils.framesIntersect(this.frame, nearFrame)
-		
-			if this.draggable.otherLayer
-				if not intersectsWithRange(this.draggable.otherLayer)
-					this.draggable.otherLayer.layout.state = "static"
-					this.draggable.otherLayer.update()
-					this.draggable.otherLayer = null
-					
-					this.layout.numberOfColumns = this.originalLayout.numberOfColumns
-					this.layout.firstRowSkip = 0
-					this.update(true)
-					
-					this.operationLabel.animate {properties: {opacity: 0}, time: 0.2}
-					
-			if not this.draggable.otherLayer
-				# TODO: Better method of finding siblings
-				for otherLayer in this.siblings
-					continue if otherLayer == this
-					continue if not (otherLayer instanceof BlockLens)
-					
-					if intersectsWithRange(otherLayer)
-						this.draggable.otherLayer = otherLayer
-						this.operationLabel.operandA = otherLayer
-						
-						this.layout = 
-							state: "tentative"
-							firstRowSkip: if shouldReflowSecondAdditionArgument then otherLayer.value % otherLayer.layout.numberOfColumns else 0
-							numberOfColumns: otherLayer.layout.numberOfColumns
-						this.update(true)
-						
-						otherLayer.layout.state = "tentativeReceiving"
-						otherLayer.update()
-						
-						this.operationLabel.animate {properties: {opacity: 1}, time: 0.2}
-						break
-						
-			if this.draggable.otherLayer
-				this.operationLabel.x = Math.min(this.x, this.draggable.otherLayer.x) - 110
-				this.operationLabel.y = (this.y + this.draggable.otherLayer.y) / 2
-		
+				
 		this.draggable.on Events.DragEnd, (event) =>
 			this.animate
 				properties:
 					x: Math.round(this.x / BlockLens.blockSize) * BlockLens.blockSize
 					y: Math.round(this.y / BlockLens.blockSize) * BlockLens.blockSize
 				time: 0.2
-		
-			this.draggable.otherLayer?.layout.state = "static"
-			this.draggable.otherLayer?.update()
-	
-			if this.draggable.otherLayer
-				finalX = this.draggable.otherLayer.x
-				finalY = this.draggable.otherLayer.y + 70
-				this.animate {properties: {x: finalX, y: finalY}, time: 0.2}
-				this.operationLabel.animate
-					properties:
-						x: Math.min(finalX, this.draggable.otherLayer.x) - 110
-						y: (finalY + this.draggable.otherLayer.y) / 2
-					time: 0.2
 					
-				this.layout.state = "static"
-				this.draggable.otherLayer = null
-			else
-				this.operationLabel.animate {properties: {opacity: 0}, time: 0.2}
-				this.layout = this.originalLayout
-				
-			this.update(true)
-			
 		this.onTap (event, layer) =>
 			event.stopPropagation()
 			this.setSelected(true) unless this.draggable.isDragging
@@ -368,41 +293,6 @@ class BlockLens extends Lens
 		
 		this.destroy()
 
-
-class OperationLabel extends Layer
-	this.size = 50
-	
-	constructor: (args) ->
-		super args
-		this.props =
-			borderColor: kaColors.math1
-			borderWidth: 2
-			borderRadius: OperationLabel.size / 2
-			width: OperationLabel.size
-			height: OperationLabel.size
-			backgroundColor: ""
-			color: kaColors.math1
-		this.html = "<p style='text-align: center; margin-top: 5px; font-family: Helvetica; font-size: 40px'>+</p>"
-		
-		this.draggable.enabled = true
-		this.draggable.momentum = false
-		this.draggable.on Events.DragMove, (event) =>
-			this.operandA.x += event.delta.x
-			this.operandA.y += event.delta.y
-			this.operandB.x += event.delta.x
-			this.operandB.y += event.delta.y
-			
-		this.on Events.TouchStart, (event) =>
-			this.operandA.layout.state = "tentativeReceiving"
-			this.operandA.update()
-			this.operandB.layout.state = "tentative"
-			this.operandB.update()
-			
-		this.on Events.TouchEnd, (event) =>
-			this.operandA.layout.state = "static"
-			this.operandA.update()
-			this.operandB.layout.state = "static"
-			this.operandB.update()	
 
 class Wedge extends Layer
 	this.restingX = 30
