@@ -161,7 +161,13 @@ class BlockLens extends Lens
 					x: Math.round(this.x / BlockLens.blockSize) * BlockLens.blockSize
 					y: Math.round(this.y / BlockLens.blockSize) * BlockLens.blockSize
 				time: 0.2
-					
+	
+		this.on Events.TouchStart, (event, layer) ->
+   			 this.setBeingTouched(true)
+   			 
+   		this.on Events.TouchEnd, (even, layer) ->
+   			this.setBeingTouched(false)
+   			 
 		this.onTap (event, layer) =>
 			event.stopPropagation()
 			this.setSelected(true) unless this.draggable.isDragging
@@ -269,6 +275,18 @@ class BlockLens extends Lens
 		this.reflowHandle.visible = isSelected
 		this.wedge.visible = isSelected
 		selection = this if isSelected
+	
+	#gets called on touch down and touch up events
+	setBeingTouched: (isBeingTouched) ->
+		if (isBeingTouched) 
+					
+		else 
+		
+		print "being touched got called with " + isBeingTouched
+		
+	#changes the color of the block array
+	
+
 		
 	splitAt: (rowSplitIndex) ->
 		newValueA = Math.min(rowSplitIndex * this.layout.numberOfColumns - this.layout.firstRowSkip, this.value)
