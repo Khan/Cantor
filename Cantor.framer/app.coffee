@@ -211,8 +211,8 @@ class BlockLens extends Lens
 				
 		# Resize lens to fit blocks.
 		contentFrame = this.contentFrame()
-		this.width = BlockLens.blockSize * this.layout.numberOfColumns
-		this.height = this.blockLayers[this.value - 1].maxY
+		this.width = BlockLens.blockSize * this.layout.numberOfColumns + 2
+		this.height = this.blockLayers[this.value - 1].maxY + 2
 
 		# Update the grid ticks:
 		if enableBlockGridTicks
@@ -252,12 +252,18 @@ class BlockLens extends Lens
 # 			time: if animated then 0.1 else 0
 			
 	setSelected: (isSelected) ->
+		return if (isSelected and selection == this) or (not isSelected and selection == null)
+
+		selectionBorderWidth = 1
+		this.x += if isSelected then -selectionBorderWidth else selectionBorderWidth
+		this.y += if isSelected then -selectionBorderWidth else selectionBorderWidth
+		
 		selection?.setSelected(false) if selection != this
-		this.borderWidth = if isSelected then 1 else 0
+		this.borderWidth = if isSelected then selectionBorderWidth else 0
 		this.resizeHandle.visible = isSelected
 		this.reflowHandle.visible = isSelected
 		this.wedge.visible = isSelected
-		selection = this if isSelected
+		selection = if isSelected then this else null
 	
 	#gets called on touch down and touch up events
 	setBeingTouched: (isBeingTouched) ->
