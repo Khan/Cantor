@@ -1,3 +1,5 @@
+Framer.Extras.Hints.disable()
+
 kaColors = require "kaColors"
 utils = require "utils"
 {TextLayer} = require 'TextLayer'
@@ -98,7 +100,7 @@ class BlockLens extends Lens
 					height: 2
 				this.tensTicks.push(tensTick)
 			
-		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
+# 		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
 		
 		this.wedge = new Wedge { parent: this }
 		
@@ -124,29 +126,10 @@ class BlockLens extends Lens
 		this.resizeHandle.on Events.DragEnd, =>
 			this.layoutResizeHandle true
 			
-		this.reflowHandle = new Layer
+		this.reflowHandle = new ReflowHandle
 			parent: this
-			width: BlockLens.resizeHandleSize
-			height: BlockLens.resizeHandleSize
-			borderRadius: BlockLens.resizeHandleSize / 2.0
-			borderColor: kaColors.math2
-			borderWidth: 6
-			backgroundColor: ""
-			x: -BlockLens.resizeHandleSize / 2.0
-			
-		this.reflowHandle.draggable.enabled = true
-		this.reflowHandle.draggable.momentum = false
-		this.reflowHandle.draggable.vertical = false
-		this.reflowHandle.draggable.constraints = {x: -BlockLens.resizeHandleSize / 2, y: 0, width: BlockLens.blockSize * 10 + BlockLens.resizeHandleSize / 2, height: 0}
-		this.reflowHandle.draggable.overdrag = false
-		this.reflowHandle.draggable.propagateEvents = false
-		this.reflowHandle.on Events.DragMove, =>
-			startPoint = this.reflowHandle.draggable.layerStartPoint 
-			offset = this.reflowHandle.draggable.offset
-			this.layout.firstRowSkip = utils.clip(Math.round((startPoint.x + offset.x) / BlockLens.blockSize), 0, 9)
-			this.update()
-		this.reflowHandle.on Events.DragEnd, =>
-			this.layoutReflowHandle true
+		this.reflowHandle.midY = BlockLens.blockSize / 2 + 3
+		this.reflowHandle.maxX = 0
 		
 		this.draggable.enabled = true
 		this.draggable.momentum = false
@@ -262,11 +245,11 @@ class BlockLens extends Lens
 			time: if animated then 0.1 else 0	
 			
 	layoutReflowHandle: (animated) ->
-		this.reflowHandle.animate
-			properties:
-				x: Math.max(-BlockLens.resizeHandleSize / 2, this.reflowHandle.x)
-				y: (BlockLens.blockSize - BlockLens.resizeHandleSize) / 2
-			time: if animated then 0.1 else 0
+# 		this.reflowHandle.animate
+# 			properties:
+# 				x: Math.max(-BlockLens.resizeHandleSize / 2, this.reflowHandle.x)
+# 				y: (BlockLens.blockSize - BlockLens.resizeHandleSize) / 2
+# 			time: if animated then 0.1 else 0
 			
 	setSelected: (isSelected) ->
 		selection?.setSelected(false) if selection != this
@@ -311,6 +294,98 @@ class BlockLens extends Lens
 		
 		this.destroy()
 
+
+class ReflowHandle extends Layer
+	this.knobSize = 30
+	this.knobRightMargin = 45
+
+	constructor: (args) ->
+		throw "Requires parent layer" if args.parent == null
+		
+		super args
+		this.props =
+			backgroundColor: ""
+		
+		knob = new Layer
+			parent: this
+			backgroundColor: kaColors.math2
+			width: ReflowHandle.knobSize
+			height: ReflowHandle.knobSize
+			borderRadius: ReflowHandle.knobSize / 2
+			
+		horizontalBrace = new Layer
+			parent: this
+			width: ReflowHandle.knobRightMargin + ReflowHandle.knobSize / 2
+			height: 1
+			x: knob.midX
+			y: knob.midY
+			backgroundColor: kaColors.math2
+			
+		verticalBrace = new Layer
+			parent: this
+			width: 5
+			height: BlockLens.blockSize
+			x: horizontalBrace.maxX
+			midY: knob.midY
+			backgroundColor: horizontalBrace.backgroundColor
+			
+		verticalKnobTrack = new Layer
+			parent: this
+			width: 2
+			midX: knob.midX
+			opacity: 0
+			
+		updateVerticalKnobTrackGradient = ->
+			fadeLength = 75
+			trackLengthBeyondKnob = 200
+			trackColor = kaColors.math2
+			transparentTrackColor = "rgba(85, 209, 229, 0.0)"
+			
+			bottomFadeStartingHeight = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob - fadeLength
+			verticalKnobTrack.height = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob
+			verticalKnobTrack.y = -trackLengthBeyondKnob + Math.min(0, knob.midY)
+			verticalKnobTrack.style.background = "-webkit-linear-gradient(top, #{transparentTrackColor} 0%, #{trackColor} #{fadeLength}px, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
+			
+		updateVerticalKnobTrackGradient()
+		
+		this.width = verticalBrace.maxX
+		this.height = verticalBrace.maxY
+		
+		this.onTouchStart ->
+			knob.animate { properties: {scale: 2}, time: 0.2 }
+			verticalKnobTrack.animate { properties: {opacity: 1}, time: 0.2}
+			
+		this.onTouchEnd ->
+# 			knob.animate { properties: {scale: 1}, time: 0.2 }
+			
+		this.onPan (event) ->
+			knob.y += event.delta.y
+			this.x += event.delta.x
+			updateVerticalKnobTrackGradient()
+			
+			this.parent.layout.firstRowSkip = utils.clip(Math.ceil(this.maxX / BlockLens.blockSize), 0, 9)
+			this.parent.update()
+
+			event.stopPropagation()
+			
+		this.onPanEnd ->
+			isAnimating = true
+			verticalKnobTrack.animate { properties: {opacity: 0}, time: 0.2}
+			
+			knobAnimation = knob.animate { properties: {y: 0, scale: 1}, time: 0.2 }
+			knobAnimation.on Events.AnimationEnd, ->
+				isAnimating = false
+				
+			updateVerticalTrackForAnimation = ->
+				return unless isAnimating
+				updateVerticalKnobTrackGradient()
+				requestAnimationFrame updateVerticalTrackForAnimation
+			requestAnimationFrame updateVerticalTrackForAnimation
+			
+			this.animate { properties: { maxX: BlockLens.blockSize * this.parent.layout.firstRowSkip }, time: 0.2}
+			
+			event.stopPropagation()
+			
 
 class Wedge extends Layer
 	this.restingX = 30
