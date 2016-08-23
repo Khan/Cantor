@@ -357,7 +357,8 @@ class ReflowHandle extends Layer
 			verticalKnobTrack.animate { properties: {opacity: 1}, time: 0.2}
 			
 		this.onTouchEnd ->
-# 			knob.animate { properties: {scale: 1}, time: 0.2 }
+			knob.animate { properties: {scale: 1}, time: 0.2 }
+			verticalKnobTrack.animate { properties: {opacity: 0}, time: 0.2}
 			
 		this.onPan (event) ->
 			knob.y += event.delta.y
@@ -371,9 +372,7 @@ class ReflowHandle extends Layer
 			
 		this.onPanEnd ->
 			isAnimating = true
-			verticalKnobTrack.animate { properties: {opacity: 0}, time: 0.2}
-			
-			knobAnimation = knob.animate { properties: {y: 0, scale: 1}, time: 0.2 }
+			knobAnimation = knob.animate { properties: {y: 0}, time: 0.2 }
 			knobAnimation.on Events.AnimationEnd, ->
 				isAnimating = false
 				
