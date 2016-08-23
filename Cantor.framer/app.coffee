@@ -315,7 +315,7 @@ class ReflowHandle extends Layer
 		horizontalBrace = new Layer
 			parent: this
 			width: ReflowHandle.knobRightMargin + ReflowHandle.knobSize / 2
-			height: 1
+			height: 2
 			x: knob.midX
 			y: knob.midY
 			backgroundColor: kaColors.math2
@@ -333,6 +333,7 @@ class ReflowHandle extends Layer
 			width: 2
 			midX: knob.midX
 			opacity: 0
+		verticalKnobTrack.sendToBack()
 			
 		updateVerticalKnobTrackGradient = ->
 			fadeLength = 75
@@ -343,6 +344,7 @@ class ReflowHandle extends Layer
 			bottomFadeStartingHeight = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob - fadeLength
 			verticalKnobTrack.height = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob
 			verticalKnobTrack.y = -trackLengthBeyondKnob + Math.min(0, knob.midY)
+			verticalKnobTrack.style["-webkit-mask-image"] = "url(images/dash.png)"
 			verticalKnobTrack.style.background = "-webkit-linear-gradient(top, #{transparentTrackColor} 0%, #{trackColor} #{fadeLength}px, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
 			
 		updateVerticalKnobTrackGradient()
