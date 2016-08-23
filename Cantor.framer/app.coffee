@@ -261,13 +261,12 @@ class BlockLens extends Lens
 	
 	#gets called on touch down and touch up events
 	setBeingTouched: (isBeingTouched) ->
-		if (isBeingTouched) 
-					
-		else 
-		
-		print "being touched got called with " + isBeingTouched
-		
-	#changes the color of the block array
+	
+		for block in this.blockLayers
+			block.backgroundColor = if isBeingTouched then kaColors.math3 else kaColors.math1
+			
+			
+			
 	
 
 		
