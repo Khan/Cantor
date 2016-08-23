@@ -385,6 +385,12 @@ class ReflowHandle extends Layer
 			
 			event.stopPropagation()
 			
+		this.on Events.TouchStart, (event, layer) ->
+   			event.stopPropagation()
+   			 
+   		this.on Events.TouchEnd, (even, layer) ->
+   			event.stopPropagation()
+			
 
 class Wedge extends Layer
 	this.restingX = 30
@@ -419,6 +425,11 @@ class Wedge extends Layer
 				this.animate { properties: { x: this.parent.width + Wedge.restingX }, time: 0.2 }
 			
 		this.onTap (event) -> event.stopPropagation()
+		this.on Events.TouchStart, (event, layer) ->
+   			event.stopPropagation()
+   			 
+   		this.on Events.TouchEnd, (even, layer) ->
+   			event.stopPropagation()
 
 # Controls
 
