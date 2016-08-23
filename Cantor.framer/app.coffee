@@ -100,7 +100,7 @@ class BlockLens extends Lens
 					height: 2
 				this.tensTicks.push(tensTick)
 			
-# 		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
+		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
 		
 		this.wedge = new Wedge { parent: this }
 		
