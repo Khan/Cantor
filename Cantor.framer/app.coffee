@@ -106,7 +106,7 @@ class BlockLens extends Lens
 		this.resizeHandle = new ResizeHandle {parent: this}
 		
 		this.reflowHandle = new ReflowHandle {parent: this}
-		this.reflowHandle.midY = BlockLens.blockSize / 2 + 3
+		this.reflowHandle.midY = BlockLens.blockSize / 2 + 2
 		this.reflowHandle.maxX = 0
 		
 		this.draggable.enabled = true
@@ -391,7 +391,6 @@ class ResizeHandle extends Layer
 		this.verticalBrace = new Layer
 			parent: this
 			width: 5
-			height: BlockLens.blockSize
 			midX: knob.midX
 			backgroundColor: kaColors.math2
 			
@@ -443,18 +442,21 @@ class ResizeHandle extends Layer
 			event.stopPropagation()
 			
 	updateSublayers: ->
+		print "update sublayers"
 		this.verticalBrace.y = 0
-		this.verticalBrace.height = this.parent.height
+		this.verticalBrace.height = this.parent.height - this.y
 		this.height = this.knob.maxY
 		
 	updatePosition: (animated) ->
+		print "update position"
+		this.y = 2
 		this.animate
-			properties: { midX: BlockLens.blockSize * this.parent.layout.numberOfColumns }
+			properties: { midX: BlockLens.blockSize * this.parent.layout.numberOfColumns + 2 }
 			time: if animated then 0.2 else 0
 			
 		isAnimating = true
 		knobAnimation = this.knob.animate
-			properties: { midY: this.verticalBrace.height }
+			properties: { midY: this.parent.height - this.y }
 			time: if animated then 0.2 else 0
 		knobAnimation.on Events.AnimationEnd, ->
 			isAnimating = false
