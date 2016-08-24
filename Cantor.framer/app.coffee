@@ -145,12 +145,17 @@ class BlockLens extends Lens
 					y: Math.round(this.y / BlockLens.blockSize) * BlockLens.blockSize
 				time: 0.2
 	
+		# Hello greetings. You will notice that these TouchStart and TouchEnd methods have some hit testing garbage in them. That's because Framer can't deal with event cancellation correctly for this highlight behavior vs. children's gestures (i.e. the reflow handle and wedge). This is sad. Maybe someday we'll make Framer better.
 		this.on Events.TouchStart, (event, layer) ->
-   			 this.setBeingTouched(true)
-   			 
-   		this.on Events.TouchEnd, (even, layer) ->
-   			this.setBeingTouched(false)
-   			 
+			point = Canvas.convertPointToLayer({x: event.pageX, y: event.pageY}, this.parent)
+			return unless utils.pointInsideLayer(this, point)
+			this.setBeingTouched(true)
+
+		this.on Events.TouchEnd, (event, layer) ->
+			point = Canvas.convertPointToLayer({x: event.pageX, y: event.pageY}, this.parent)
+			return unless utils.pointInsideLayer(this, point)
+			this.setBeingTouched(false)
+
 		this.onTap (event, layer) =>
 			event.stopPropagation()
 			this.setSelected(true) unless this.draggable.isDragging
@@ -264,18 +269,14 @@ class BlockLens extends Lens
 		this.reflowHandle.visible = isSelected
 		this.wedge.visible = isSelected
 		selection = if isSelected then this else null
+		
 	
 	#gets called on touch down and touch up events
 	setBeingTouched: (isBeingTouched) ->
-	
 		for block in this.blockLayers
 			block.backgroundColor = if isBeingTouched then kaColors.math3 else kaColors.math1
 			
 			
-			
-	
-
-		
 	splitAt: (rowSplitIndex) ->
 		newValueA = Math.min(rowSplitIndex * this.layout.numberOfColumns - this.layout.firstRowSkip, this.value)
 		newValueB = this.value - newValueA
@@ -392,13 +393,6 @@ class ReflowHandle extends Layer
 			
 			event.stopPropagation()
 			
-		this.on Events.TouchStart, (event, layer) ->
-   			event.stopPropagation()
-   			 
-   		this.on Events.TouchEnd, (even, layer) ->
-   			event.stopPropagation()
-			
-
 class Wedge extends Layer
 	this.restingX = 30
 	this.splitY = 30
@@ -432,11 +426,6 @@ class Wedge extends Layer
 				this.animate { properties: { x: this.parent.width + Wedge.restingX }, time: 0.2 }
 			
 		this.onTap (event) -> event.stopPropagation()
-		this.on Events.TouchStart, (event, layer) ->
-   			event.stopPropagation()
-   			 
-   		this.on Events.TouchEnd, (even, layer) ->
-   			event.stopPropagation()
 
 # Controls
 
