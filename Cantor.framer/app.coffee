@@ -55,7 +55,6 @@ class Lens extends Layer
 		
 class BlockLens extends Lens
 	this.blockSize = 40
-	this.resizeHandleSize = 60
 	this.interiorBorderColor = if enableBlockGrid then "rgba(85, 209, 229, 0.4)" else ""
 	this.interiorBorderWidth = if enableBlockGrid then 1 else 0
 		
@@ -104,30 +103,9 @@ class BlockLens extends Lens
 		
 		this.wedge = new Wedge { parent: this }
 		
-		this.resizeHandle = new Layer
-			parent: this
-			width: BlockLens.resizeHandleSize
-			height: BlockLens.resizeHandleSize
-			borderRadius: BlockLens.resizeHandleSize / 2.0
-			borderColor: kaColors.math2
-			borderWidth: 6
-			backgroundColor: ""
-			
-		this.resizeHandle.draggable.enabled = true
-		this.resizeHandle.draggable.momentum = false
-		this.resizeHandle.draggable.constraints = {x: BlockLens.blockSize, y: 0, width: BlockLens.blockSize * 10, height: this.value * BlockLens.blockSize}
-		this.resizeHandle.draggable.overdrag = false
-		this.resizeHandle.draggable.propagateEvents = false
-		this.resizeHandle.on Events.DragMove, =>
-			startPoint = this.resizeHandle.draggable.layerStartPoint 
-			offset = this.resizeHandle.draggable.offset
-			this.layout.numberOfColumns = Math.round((startPoint.x + offset.x) / BlockLens.blockSize)
-			this.update()
-		this.resizeHandle.on Events.DragEnd, =>
-			this.layoutResizeHandle true
-			
-		this.reflowHandle = new ReflowHandle
-			parent: this
+		this.resizeHandle = new ResizeHandle {parent: this}
+		
+		this.reflowHandle = new ReflowHandle {parent: this}
 		this.reflowHandle.midY = BlockLens.blockSize / 2 + 3
 		this.reflowHandle.maxX = 0
 		
@@ -177,7 +155,7 @@ class BlockLens extends Lens
 			this.digitLabel.height += 5
 				
 		this.update()
-		this.layoutResizeHandle false
+		this.resizeHandle.updatePosition false
 		this.layoutReflowHandle false
 		this.setSelected(false)
 		
@@ -238,16 +216,10 @@ class BlockLens extends Lens
 			this.digitLabel.midY = this.height / 2
 		
 		this.resizeHandle.visible = (selection == this) and (this.layout.state != "tentativeReceiving")
+		this.resizeHandle.updateSublayers()
 		
 		if not this.wedge.draggable.isDragging
 			this.wedge.x = this.width + Wedge.restingX
-
-	layoutResizeHandle: (animated) ->
-		this.resizeHandle.animate
-			properties:
-				x: this.width - BlockLens.resizeHandleSize / 2
-				y: this.height - BlockLens.resizeHandleSize / 2
-			time: if animated then 0.1 else 0	
 			
 	layoutReflowHandle: (animated) ->
 # 		this.reflowHandle.animate
@@ -392,6 +364,101 @@ class ReflowHandle extends Layer
 			this.animate { properties: { maxX: BlockLens.blockSize * this.parent.layout.firstRowSkip }, time: 0.2}
 			
 			event.stopPropagation()
+			
+class ResizeHandle extends Layer
+	this.knobSize = 30
+	this.knobRightMargin = 45
+
+	constructor: (args) ->
+		throw "Requires parent layer" if args.parent == null
+		
+		super args
+		this.props =
+			backgroundColor: ""
+			width: 95
+		
+		knob = new Layer
+			parent: this
+			backgroundColor: kaColors.math2
+			midX: this.midX
+			width: ReflowHandle.knobSize
+			height: ReflowHandle.knobSize
+			borderRadius: ReflowHandle.knobSize / 2
+		this.knob = knob
+			
+		this.verticalBrace = new Layer
+			parent: this
+			width: 5
+			height: BlockLens.blockSize
+			midX: knob.midX
+			backgroundColor: kaColors.math2
+			
+		verticalKnobTrack = new Layer
+			parent: this
+			width: 2
+			midX: knob.midX
+			opacity: 0
+		verticalKnobTrack.sendToBack()
+			
+		this.updateVerticalKnobTrackGradient = =>
+			fadeLength = 150
+			trackLengthBeyondKnob = 250
+			trackColor = kaColors.math2
+			transparentTrackColor = "rgba(85, 209, 229, 0.0)"
+			
+			bottomFadeStartingHeight = knob.midY - this.verticalBrace.maxY
+			verticalKnobTrack.height = knob.midY - this.verticalBrace.maxY + trackLengthBeyondKnob
+			verticalKnobTrack.y = this.verticalBrace.maxY
+			verticalKnobTrack.style["-webkit-mask-image"] = "url(images/dash.png)"
+			verticalKnobTrack.style.background = "-webkit-linear-gradient(top, #{trackColor} 0%, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
+			
+		this.updateVerticalKnobTrackGradient()
+		
+		this.onTouchStart ->
+			knob.animate { properties: {scale: 2}, time: 0.2 }
+			verticalKnobTrack.animate { properties: {opacity: 1}, time: 0.2}
+			
+		this.onTouchEnd ->
+			knob.animate { properties: {scale: 1}, time: 0.2 }
+			verticalKnobTrack.animate { properties: {opacity: 0}, time: 0.2}
+		
+		this.onPan (event) ->
+			knob.y += event.delta.y
+			this.x += event.delta.x
+			this.updateVerticalKnobTrackGradient()
+			
+			this.parent.layout.numberOfColumns = Math.floor((this.x + this.verticalBrace.x) / BlockLens.blockSize)
+			this.parent.update()
+
+			event.stopPropagation()
+			
+		this.onPanEnd =>			
+			this.updatePosition true
+			event.stopPropagation()
+			
+	updateSublayers: ->
+		this.verticalBrace.y = 0
+		this.verticalBrace.height = this.parent.height
+		this.height = this.knob.maxY
+		
+	updatePosition: (animated) ->
+		this.animate
+			properties: { midX: BlockLens.blockSize * this.parent.layout.numberOfColumns }
+			time: if animated then 0.2 else 0
+			
+		isAnimating = true
+		knobAnimation = this.knob.animate
+			properties: { midY: this.verticalBrace.height }
+			time: if animated then 0.2 else 0
+		knobAnimation.on Events.AnimationEnd, ->
+			isAnimating = false
+			
+		updateVerticalTrackForAnimation = =>
+			this.updateSublayers()
+			return unless isAnimating
+			this.updateVerticalKnobTrackGradient()
+			requestAnimationFrame updateVerticalTrackForAnimation
+		requestAnimationFrame updateVerticalTrackForAnimation
 			
 class Wedge extends Layer
 	this.restingX = 30
