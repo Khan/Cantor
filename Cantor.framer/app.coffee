@@ -534,7 +534,8 @@ class GlobalButton extends Layer
 			this.action?()
 			
 addBlockPromptLabel = new Layer
-	width: Screen.width
+	parent: rootLayer
+	width: rootLayer.width
 	backgroundColor: kaColors.cs1
 	height: 88
 	y: -88
@@ -546,7 +547,7 @@ addBlockPromptLabelText = new TextLayer
 	color: kaColors.white
 	autoSize: true
 	y: Align.center()
-	width: Screen.width
+	width: addBlockPromptLabel.width
 			
 addButton = new GlobalButton
 	parent: rootLayer
