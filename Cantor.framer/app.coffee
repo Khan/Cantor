@@ -1,3 +1,6 @@
+# Everything was designed for @2x displays (which... Framer claims has have a contentScale of 1.0), so if Framer is running for a desktop display, we'll need to scale.
+Framer.Device.contentScale = if Framer.Device.deviceType == "fullscreen" then 0.5 else 1.0
+
 Framer.Extras.Hints.disable()
 
 kaColors = require "kaColors"
@@ -21,11 +24,17 @@ debugShowLensFrames = false
 
 # Canvas
 
+rootLayer = new Layer
+	backgroundColor: ""
+	width: Screen.width / Framer.Device.contentScale
+	height: Screen.height / Framer.Device.contentScale
+
 selection = null
 canvasComponent = new ScrollComponent
 	backgroundColor: ""
-	width: Screen.width
-	height: Screen.height
+	parent: rootLayer
+	width: rootLayer.width
+	height: rootLayer.height
 canvas = canvasComponent.content
 canvas.onTap (event, layer) ->
 	selection?.setSelected(false) if not layer.draggable.isDragging
@@ -540,6 +549,7 @@ addBlockPromptLabelText = new TextLayer
 	width: Screen.width
 			
 addButton = new GlobalButton
+	parent: rootLayer
 	x: Align.right(-20)
 	y: Align.bottom(-20)
 	action: ->
