@@ -442,13 +442,11 @@ class ResizeHandle extends Layer
 			event.stopPropagation()
 			
 	updateSublayers: ->
-		print "update sublayers"
 		this.verticalBrace.y = 0
 		this.verticalBrace.height = this.parent.height - this.y
 		this.height = this.knob.maxY
 		
 	updatePosition: (animated) ->
-		print "update position"
 		this.y = 2
 		this.animate
 			properties: { midX: BlockLens.blockSize * this.parent.layout.numberOfColumns + 2 }
