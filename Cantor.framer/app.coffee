@@ -354,7 +354,7 @@ class ReflowHandle extends Layer
 			this.x += event.delta.x
 			updateVerticalKnobTrackGradient()
 			
-			this.parent.layout.firstRowSkip = utils.clip(Math.ceil(this.maxX / BlockLens.blockSize), 0, 9)
+			this.parent.layout.firstRowSkip = utils.clip(Math.ceil(this.maxX / BlockLens.blockSize), 0, this.parent.layout.numberOfColumns - 1)
 			this.parent.update()
 
 			event.stopPropagation()
