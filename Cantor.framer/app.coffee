@@ -441,7 +441,7 @@ class ResizeHandle extends Layer
 			this.x += event.delta.x
 			this.updateVerticalKnobTrackGradient()
 			
-			this.parent.layout.numberOfColumns = Math.floor((this.x + this.verticalBrace.x) / BlockLens.blockSize)
+			this.parent.layout.numberOfColumns = Math.max(1, Math.floor((this.x + this.verticalBrace.x) / BlockLens.blockSize))
 			this.parent.update()
 			
 			event.stopPropagation()
