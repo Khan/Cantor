@@ -229,19 +229,18 @@ class BlockLens extends Lens
 # 			time: if animated then 0.1 else 0
 			
 	setSelected: (isSelected) ->
-		return if (isSelected and selection == this) or (not isSelected and selection == null)
-
 		selectionBorderWidth = 1
-		this.x += if isSelected then -selectionBorderWidth else selectionBorderWidth
-		this.y += if isSelected then -selectionBorderWidth else selectionBorderWidth
-		
 		selection?.setSelected(false) if selection != this
 		this.borderWidth = if isSelected then selectionBorderWidth else 0
 		this.resizeHandle.visible = isSelected
 		this.reflowHandle.visible = isSelected
 		this.wedge.visible = isSelected
-		selection = if isSelected then this else null
 		
+		if (isSelected and selection != this) or (not isSelected and selection == this)
+			this.x += if isSelected then -selectionBorderWidth else selectionBorderWidth
+			this.y += if isSelected then -selectionBorderWidth else selectionBorderWidth
+			
+		selection = if isSelected then this else null
 	
 	#gets called on touch down and touch up events
 	setBeingTouched: (isBeingTouched) ->
@@ -283,29 +282,34 @@ class ReflowHandle extends Layer
 		super args
 		this.props =
 			backgroundColor: ""
+			width: 110
+			height: 110
+		
+		verticalBrace = new Layer
+			parent: this
+			width: 5
+			height: BlockLens.blockSize
+			maxX: this.maxX
+			midY: this.midY
+			backgroundColor: kaColors.math2
+		
+		horizontalBrace = new Layer
+			parent: this
+			width: ReflowHandle.knobRightMargin + ReflowHandle.knobSize / 2
+			height: 2
+			maxX: verticalBrace.x
+			midY: this.midY
+			backgroundColor: kaColors.math2
 		
 		knob = new Layer
 			parent: this
 			backgroundColor: kaColors.math2
 			width: ReflowHandle.knobSize
 			height: ReflowHandle.knobSize
+			midX: horizontalBrace.x
+			midY: this.midY
 			borderRadius: ReflowHandle.knobSize / 2
-			
-		horizontalBrace = new Layer
-			parent: this
-			width: ReflowHandle.knobRightMargin + ReflowHandle.knobSize / 2
-			height: 2
-			x: knob.midX
-			y: knob.midY
-			backgroundColor: kaColors.math2
-			
-		verticalBrace = new Layer
-			parent: this
-			width: 5
-			height: BlockLens.blockSize
-			x: horizontalBrace.maxX
-			midY: knob.midY
-			backgroundColor: horizontalBrace.backgroundColor
+						
 			
 		verticalKnobTrack = new Layer
 			parent: this
@@ -314,7 +318,7 @@ class ReflowHandle extends Layer
 			opacity: 0
 		verticalKnobTrack.sendToBack()
 			
-		updateVerticalKnobTrackGradient = ->
+		updateVerticalKnobTrackGradient = =>
 			fadeLength = 75
 			trackLengthBeyondKnob = 200
 			trackColor = kaColors.math2
@@ -322,14 +326,11 @@ class ReflowHandle extends Layer
 			
 			bottomFadeStartingHeight = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob - fadeLength
 			verticalKnobTrack.height = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob
-			verticalKnobTrack.y = -trackLengthBeyondKnob + Math.min(0, knob.midY)
+			verticalKnobTrack.y = -trackLengthBeyondKnob + this.midY + Math.min(0, knob.midY)
 			verticalKnobTrack.style["-webkit-mask-image"] = "url(images/dash.png)"
 			verticalKnobTrack.style.background = "-webkit-linear-gradient(top, #{transparentTrackColor} 0%, #{trackColor} #{fadeLength}px, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
 			
 		updateVerticalKnobTrackGradient()
-		
-		this.width = verticalBrace.maxX
-		this.height = verticalBrace.maxY
 		
 		this.onTouchStart ->
 			knob.animate { properties: {scale: 2}, time: 0.2 }
@@ -349,9 +350,10 @@ class ReflowHandle extends Layer
 
 			event.stopPropagation()
 			
-		this.onPanEnd ->
+		this.onPanEnd =>
 			isAnimating = true
-			knobAnimation = knob.animate { properties: {y: 0}, time: 0.2 }
+			# Why can't this be midY: this.midY? Who knows?! Framer!
+			knobAnimation = knob.animate { properties: {midY: this.height / 2}, time: 0.2 }
 			knobAnimation.on Events.AnimationEnd, ->
 				isAnimating = false
 				
