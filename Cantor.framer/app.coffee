@@ -415,12 +415,16 @@ class ResizeHandle extends Layer
 		this.updateVerticalKnobTrackGradient()
 		
 		this.onTouchStart ->
-			knob.animate { properties: {scale: 2}, time: 0.2 }
-			verticalKnobTrack.animate { properties: {opacity: 1}, time: 0.2}
+			knob.animate { properties: { scale: 2 }, time: 0.2 }
+			verticalKnobTrack.animate { properties: { opacity: 1 }, time: 0.2}
+			
+			# This is pretty hacky, even for a prototype. Eh.
+			this.parent.wedge.animate { properties: { opacity: 0 }, time: 0.2 }
 			
 		this.onTouchEnd ->
-			knob.animate { properties: {scale: 1}, time: 0.2 }
-			verticalKnobTrack.animate { properties: {opacity: 0}, time: 0.2}
+			knob.animate { properties: { scale: 1 }, time: 0.2 }
+			verticalKnobTrack.animate { properties: { opacity: 0 }, time: 0.2}
+			this.parent.wedge.animate { properties: { opacity: 1 }, time: 0.4, delay: 0.4 }
 		
 		this.onPan (event) ->
 			knob.y += event.delta.y
@@ -429,7 +433,7 @@ class ResizeHandle extends Layer
 			
 			this.parent.layout.numberOfColumns = Math.floor((this.x + this.verticalBrace.x) / BlockLens.blockSize)
 			this.parent.update()
-
+			
 			event.stopPropagation()
 			
 		this.onPanEnd =>			
