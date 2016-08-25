@@ -477,7 +477,7 @@ class ResizeHandle extends Layer
 			
 class Wedge extends Layer
 	this.restingX = 30
-	this.splitY = 30
+	this.splitY = BlockLens.blockSize
 
 	constructor: (args) ->
 		throw "Requires parent layer" if args.parent == null
