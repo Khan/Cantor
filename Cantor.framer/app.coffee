@@ -361,7 +361,6 @@ class ReflowHandle extends Layer
 			
 		this.onPanEnd =>
 			isAnimating = true
-			# Why can't this be midY: this.midY? Who knows?! Framer!
 			knobAnimation = knob.animate { properties: {midY: this.height / 2}, time: 0.2 }
 			knobAnimation.on Events.AnimationEnd, ->
 				isAnimating = false
@@ -378,7 +377,8 @@ class ReflowHandle extends Layer
 			
 class ResizeHandle extends Layer
 	this.knobSize = 30
-	this.knobRightMargin = 45
+	# This is kinda complicated... because we don't want touches on the resize handle to conflict with touches on the blocks themselves, we make it easier to "miss" the resize handle down and to the right of its actual position than up or to the left.
+	this.knobHitTestBias = 10
 
 	constructor: (args) ->
 		throw "Requires parent layer" if args.parent == null
@@ -386,27 +386,35 @@ class ResizeHandle extends Layer
 		super args
 		this.props =
 			backgroundColor: ""
-			width: 95
+			width: 88
 		
 		knob = new Layer
 			parent: this
-			backgroundColor: kaColors.math2
-			midX: this.midX
-			width: ReflowHandle.knobSize
-			height: ReflowHandle.knobSize
-			borderRadius: ReflowHandle.knobSize / 2
+			backgroundColor: ""
+			midX: this.midX + ResizeHandle.knobHitTestBias
+			width: this.width
+			height: this.width
 		this.knob = knob
+		
+		knobDot = new Layer
+			parent: knob
+			backgroundColor: kaColors.math2
+			midX: knob.width / 2 - ResizeHandle.knobHitTestBias
+			midY: knob.midY -  ResizeHandle.knobHitTestBias
+			width: ResizeHandle.knobSize
+			height: ResizeHandle.knobSize
+			borderRadius: ResizeHandle.knobSize / 2
 			
 		this.verticalBrace = new Layer
 			parent: this
 			width: 5
-			midX: knob.midX
+			midX: this.midX
 			backgroundColor: kaColors.math2
 			
 		verticalKnobTrack = new Layer
 			parent: this
 			width: 2
-			midX: knob.midX
+			midX: this.midX
 			opacity: 0
 		verticalKnobTrack.sendToBack()
 			
@@ -424,19 +432,19 @@ class ResizeHandle extends Layer
 			
 		this.updateVerticalKnobTrackGradient()
 		
-		this.onTouchStart ->
-			knob.animate { properties: { scale: 2 }, time: 0.2 }
+		this.knob.onTouchStart =>
+			knobDot.animate { properties: { scale: 2 }, time: 0.2 }
 			verticalKnobTrack.animate { properties: { opacity: 1 }, time: 0.2}
 			
 			# This is pretty hacky, even for a prototype. Eh.
 			this.parent.wedge.animate { properties: { opacity: 0 }, time: 0.2 }
 			
-		this.onTouchEnd ->
-			knob.animate { properties: { scale: 1 }, time: 0.2 }
+		this.knob.onTouchEnd =>
+			knobDot.animate { properties: { scale: 1 }, time: 0.2 }
 			verticalKnobTrack.animate { properties: { opacity: 0 }, time: 0.2}
 			this.parent.wedge.animate { properties: { opacity: 1 }, time: 0.4, delay: 0.4 }
 		
-		this.onPan (event) ->
+		this.knob.onPan (event) =>
 			knob.y += event.delta.y
 			this.x += event.delta.x
 			this.updateVerticalKnobTrackGradient()
@@ -446,7 +454,7 @@ class ResizeHandle extends Layer
 			
 			event.stopPropagation()
 			
-		this.onPanEnd =>			
+		this.knob.onPanEnd =>			
 			this.updatePosition true
 			event.stopPropagation()
 			
@@ -463,7 +471,7 @@ class ResizeHandle extends Layer
 			
 		isAnimating = true
 		knobAnimation = this.knob.animate
-			properties: { midY: this.parent.height - this.y }
+			properties: { midY: this.parent.height - this.y + ResizeHandle.knobHitTestBias }
 			time: if animated then 0.2 else 0
 		knobAnimation.on Events.AnimationEnd, ->
 			isAnimating = false
