@@ -139,8 +139,6 @@ class BlockLens extends Lens
 			this.setBeingTouched(true)
 
 		this.on Events.TouchEnd, (event, layer) ->
-			point = Canvas.convertPointToLayer({x: event.pageX, y: event.pageY}, this.parent)
-			return unless utils.pointInsideLayer(this, point)
 			this.setBeingTouched(false)
 
 		this.onTap (event, layer) =>
