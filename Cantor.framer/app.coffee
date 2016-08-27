@@ -597,8 +597,8 @@ canvas.onPan (event) ->
 	return if value == pendingBlockToAdd?.value
 	
 	startingLocation = Screen.convertPointToLayer(event.start, canvas)
-	startingLocation.x = Math.round(startingLocation.x / BlockLens.blockSize) * BlockLens.blockSize
-	startingLocation.y = Math.round(startingLocation.y / BlockLens.blockSize) * BlockLens.blockSize - BlockLens.blockSize * 2
+	startingLocation.x = Math.floor(startingLocation.x / BlockLens.blockSize) * BlockLens.blockSize
+	startingLocation.y = Math.floor(startingLocation.y / BlockLens.blockSize) * BlockLens.blockSize - BlockLens.blockSize * 1
 	pendingBlockToAdd?.destroy()
 	pendingBlockToAdd = new BlockLens
 		parent: canvas
