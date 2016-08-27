@@ -122,9 +122,6 @@ class BlockLens extends Lens
 		this.draggable.momentum = false
 		this.draggable.propagateEvents = false
 		
-		this.draggable.on Events.DragStart, =>	
-			this.bringToFront()
-				
 		this.draggable.on Events.DragEnd, (event) =>
 			this.animate
 				properties:
@@ -134,6 +131,7 @@ class BlockLens extends Lens
 	
 		# Hello greetings. You will notice that these TouchStart and TouchEnd methods have some hit testing garbage in them. That's because Framer can't deal with event cancellation correctly for this highlight behavior vs. children's gestures (i.e. the reflow handle and wedge). This is sad. Maybe someday we'll make Framer better.
 		this.on Events.TouchStart, (event, layer) ->
+			this.bringToFront()
 			point = Canvas.convertPointToLayer({x: event.pageX, y: event.pageY}, this.parent)
 			return unless utils.pointInsideLayer(this, point)
 			this.setBeingTouched(true)
@@ -545,6 +543,7 @@ addBlockPromptLabel = new Layer
 	backgroundColor: kaColors.cs1
 	height: 88
 	y: -88
+	index: 500
 addBlockPromptLabelText = new TextLayer
 	parent: addBlockPromptLabel
 	text: "Touch and drag to add a value"
@@ -584,10 +583,19 @@ pendingBlockToAddLabel = new TextLayer
 	color: kaColors.math1
 	fontSize: 72
 	autoSize: true
-	backgroundColor: "rgba(255, 255, 255, 1.0)"
+	backgroundColor: "rgba(255, 255, 255, 0.9)"
 	borderRadius: 4
 	textAlign: "center"
-	paddingTop: 5
+	paddingTop: 10
+	paddingLeft: 10
+	paddingRight: 10
+	paddingBottom: 10
+	borderRadius: 4
+	
+canvas.onPanStart ->
+	return unless isAdding
+
+	pendingBlockToAddLabel.bringToFront()
 		
 canvas.onPan (event) ->
 	return unless isAdding
@@ -612,7 +620,7 @@ canvas.onPan (event) ->
 	pendingBlockToAddLabel.midX = startingLocation.x + BlockLens.blockSize * 5
 	pendingBlockToAddLabel.y = startingLocation.y - 100
 		
-canvas.onTouchEnd ->
+canvas.onPanEnd ->
 	return unless isAdding
 	pendingBlockToAdd?.borderWidth = 0
 	pendingBlockToAdd = null
