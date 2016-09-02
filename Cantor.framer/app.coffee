@@ -684,7 +684,6 @@ class Recorder
 		for event in this.recordedEvents by -1
 			# We'll play the soonest event we haven't already played.
 			if event.time <= (timestamp - this.basePlaybackTime) and event.time > this.lastAppliedTime
-				print "Playing #{event.time}"
 				relevantLayers = this.relevantLayerGetter()
 				# Found it! Apply each layer's record:
 				for layerID, layerRecord of event.layerRecords
