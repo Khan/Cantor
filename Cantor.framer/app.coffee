@@ -1,12 +1,12 @@
 # Everything was designed for @2x displays (which... Framer claims has have a contentScale of 1.0), so if Framer is running for a desktop display, we'll need to scale.
 Framer.Device.contentScale = if Framer.Device.deviceType == "fullscreen" then 0.5 else 1.0
-
+Screen.backgroundColor = "white"
 Framer.Extras.Hints.disable()
 
 kaColors = require "kaColors"
 utils = require "utils"
-{TextLayer} = require 'TextLayer'
-Screen.backgroundColor = "white"
+{TextLayer} = require "TextLayer"
+RecorderUtility = require "recorder"
 
 # Configuration, constants
 
@@ -638,6 +638,10 @@ class Recorder
 	isRecording: false
 	
 	constructor: (relevantLayerGetter) ->
+		window.AudioContext = window.AudioContext || window.webkitAudioContext
+		navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia
+		this.audioContext = new AudioContext
+		
 		window.addEventListener("keydown", (event) =>
 			key = String.fromCharCode(event.keyCode)
 			if key == "C"
@@ -653,15 +657,26 @@ class Recorder
 		this.relevantLayerGetter = relevantLayerGetter
 	
 	clear: =>
-		recordedEvents = []
+		this.recordedEvents = []
+		this.recorder?.clear()
 		
 	startPlaying: =>
-		return if this.isRecording
+		return if this.isRecording or this.isPlayingBackRecording
 		
 		this.basePlaybackTime = window.performance.now()
 		this.lastAppliedTime = -1
 		this.isPlayingBackRecording = true
 		this.play this.basePlaybackTime
+		
+		return unless this.recorder
+		this.recorder.getBuffer (buffers) =>
+			newSource = this.audioContext.createBufferSource()
+			newBuffer = this.audioContext.createBuffer 2, buffers[0].length, this.audioContext.sampleRate
+			newBuffer.getChannelData(0).set buffers[0]
+			newBuffer.getChannelData(1).set buffers[1]
+			newSource.buffer = newBuffer
+			newSource.connect this.audioContext.destination
+			newSource.start 0
 
 	play: (timestamp) =>
 		shouldStop = false
@@ -669,6 +684,7 @@ class Recorder
 		for event in this.recordedEvents by -1
 			# We'll play the soonest event we haven't already played.
 			if event.time <= (timestamp - this.basePlaybackTime) and event.time > this.lastAppliedTime
+				print "Playing #{event.time}"
 				relevantLayers = this.relevantLayerGetter()
 				# Found it! Apply each block's record:
 				for blockID, blockRecord of event.blockRecords
@@ -688,14 +704,28 @@ class Recorder
 		requestAnimationFrame this.play
 					
 	startRecording: =>
-		this.isRecording = true
-		
-		this.recordedEvents = []
-		this.baseRecordingTime = window.performance.now()
-		this.record this.baseRecordingTime
+		this.isRecording = true	
+		actuallyStartRecording = =>
+			this.clear()
+			this.baseRecordingTime = window.performance.now()
+			this.record this.baseRecordingTime
+	
+		if navigator.getUserMedia
+			navigator.getUserMedia({audio: true}, (stream) =>
+				input = this.audioContext.createMediaStreamSource stream
+				this.recorder = new RecorderUtility(input)
+				this.recorder.record()
+				actuallyStartRecording()
+			, (error) =>
+				print "Audio input error: #{error.name}"
+				actuallyStartRecording()
+			)
+		else
+			actuallyStartRecording()
 		
 	stopRecording: =>
 		this.isRecording = false
+		this.recorder?.stop()
 		
 	record: (timestamp) =>
 		return unless this.isRecording
