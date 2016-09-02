@@ -1,92 +1,3 @@
-baseRecordingTime = null
-recordedEvents = []
-isPlayingBackRecording = false
-isRecording = false
-
-Layer.prototype.subtree = ->
-	result = this.descendants
-	result.push(this)
-	return result
-
-canvas = null # Assigned later.
-window.addEventListener("keydown", (event) ->
-	key = String.fromCharCode(event.keyCode)
-	if key == "C"
-		recordedEvents = []
-	if key == "P"
-		return if isRecording
-		
-		basePlaybackTime = window.performance.now()
-		lastAppliedTime = -1
-		isPlayingBackRecording = true
-		play = (timestamp) ->
-			shouldStop = false
-			# Find the relevant event...
-			for event in recordedEvents by -1
-				if event.time <= (timestamp - basePlaybackTime) and event.time > lastAppliedTime
-					# Found it! Apply each block's record:
-					for blockID, blockRecord of event.blockRecords
-						# Find the live block layer that corresponds to this.
-						blockIDNumber = parseInt(blockID)
-						block = canvas.subtree.find (testBlock) ->
-							return testBlock.id == blockIDNumber
-						print "Applying #{event.time} to #{blockIDNumber}"
-						block.style.cssText = blockRecord
-					shouldStop = event == recordedEvents[recordedEvents.length - 1]
-					lastAppliedTime = event.time
-					break
-			if shouldStop
-				isPlayingBackRecording = false
-			else
-				requestAnimationFrame play
-		play basePlaybackTime
-	if key == "R"
-		isRecording = not isRecording
-		if isRecording
-			print "Recording"
-			recordedEvents = []
-			baseRecordingTime = window.performance.now()
-			record = (timestamp) ->
-				return unless isRecording
-				
-				blockRecords = {}
-				blockRecordCount = 0
-				for block in canvas.subtree
-					continue if block.skipRecording
-					
-					lastBlockRecord = null
-					for recordedEvent in recordedEvents by -1
-						lastBlockRecord = recordedEvent.blockRecords[block.id]
-						break if lastBlockRecord
-					style = block.style.cssText
-					shouldRecord = if lastBlockRecord
-						lastBlockRecord != style
-					else true
-					
-					if shouldRecord
-						blockRecords[block.id] = style
-						blockRecordCount += 1
-						
-				if blockRecordCount > 0
-					event = 
-						time: timestamp - baseRecordingTime
-						blockRecords: blockRecords
-					recordedEvents.push event
-					
-				requestAnimationFrame record
-			record baseRecordingTime
-		else
-			print "Recording complete."
-)
-
-repeat = (e) ->
-	# TODO record touches...
-	
-window.addEventListener("touchstart", repeat)
-window.addEventListener("touchmove", repeat)
-window.addEventListener("touchend", repeat)
-
-
 # Everything was designed for @2x displays (which... Framer claims has have a contentScale of 1.0), so if Framer is running for a desktop display, we'll need to scale.
 Framer.Device.contentScale = if Framer.Device.deviceType == "fullscreen" then 0.5 else 1.0
 
@@ -717,7 +628,107 @@ canvas.onPanEnd ->
 	
 	pendingBlockToAddLabel.visible = false
 	setIsAdding false
+
+# Recording and playback
+
+class Recorder
+	baseRecordingTime: null
+	recordedEvents: []
+	isPlayingBackRecording: false
+	isRecording: false
+	
+	constructor: (relevantLayerGetter) ->
+		window.addEventListener("keydown", (event) =>
+			key = String.fromCharCode(event.keyCode)
+			if key == "C"
+				this.clear()
+			if key == "P"
+				this.startPlaying()
+			if key == "R"
+				if this.isRecording
+					this.stopRecording()
+				else
+					this.startRecording()
+		)
+		this.relevantLayerGetter = relevantLayerGetter
+	
+	clear: =>
+		recordedEvents = []
+		
+	startPlaying: =>
+		return if this.isRecording
+		
+		this.basePlaybackTime = window.performance.now()
+		this.lastAppliedTime = -1
+		this.isPlayingBackRecording = true
+		this.play this.basePlaybackTime
+
+	play: (timestamp) =>
+		shouldStop = false
+		# Find the relevant event...
+		for event in this.recordedEvents by -1
+			# We'll play the soonest event we haven't already played.
+			if event.time <= (timestamp - this.basePlaybackTime) and event.time > this.lastAppliedTime
+				relevantLayers = this.relevantLayerGetter()
+				# Found it! Apply each block's record:
+				for blockID, blockRecord of event.blockRecords
+					# Find the live block layer that corresponds to this.
+					blockIDNumber = parseInt(blockID) # lol javascript
+					block = relevantLayers.find (testBlock) ->
+						return testBlock.id == blockIDNumber
+					block.style.cssText = blockRecord
+					
+				this.lastAppliedTime = event.time
+				
+				if event == this.recordedEvents[this.recordedEvents.length - 1]
+					this.isPlayingBackRecording = false
+					return
+				else
+					break
+		requestAnimationFrame this.play
+					
+	startRecording: =>
+		this.isRecording = true
+		
+		this.recordedEvents = []
+		this.baseRecordingTime = window.performance.now()
+		this.record this.baseRecordingTime
+		
+	stopRecording: =>
+		this.isRecording = false
+		
+	record: (timestamp) =>
+		return unless this.isRecording
+		
+		blockRecords = {}
+		blockRecordCount = 0
+		for block in this.relevantLayerGetter()
+			continue if block.skipRecording
 			
+			# Find the last time this layer appeared in our recording.
+			lastBlockRecord = null
+			for recordedEvent in this.recordedEvents by -1
+				lastBlockRecord = recordedEvent.blockRecords[block.id]
+				break if lastBlockRecord
+				
+			style = block.style.cssText
+			if lastBlockRecord != style
+				blockRecords[block.id] = style
+				blockRecordCount += 1
+				
+		if blockRecordCount > 0
+			event = 
+				time: timestamp - this.baseRecordingTime
+				blockRecords: blockRecords
+			this.recordedEvents.push event
+			
+		requestAnimationFrame this.record
+
+recorder = new Recorder ->
+	result = canvas.descendants
+	result.push(canvas)
+	return result
+
 # Setup
 
 startingOffset = 40 * 60
