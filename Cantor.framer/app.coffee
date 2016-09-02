@@ -686,13 +686,13 @@ class Recorder
 			if event.time <= (timestamp - this.basePlaybackTime) and event.time > this.lastAppliedTime
 				print "Playing #{event.time}"
 				relevantLayers = this.relevantLayerGetter()
-				# Found it! Apply each block's record:
-				for blockID, blockRecord of event.blockRecords
-					# Find the live block layer that corresponds to this.
-					blockIDNumber = parseInt(blockID) # lol javascript
-					block = relevantLayers.find (testBlock) ->
-						return testBlock.id == blockIDNumber
-					block.style.cssText = blockRecord
+				# Found it! Apply each layer's record:
+				for layerID, layerRecord of event.layerRecords
+					# Find the live layer layer that corresponds to this.
+					layerIDNumber = parseInt(layerID) # lol javascript
+					layer = relevantLayers.find (testLayer) ->
+						return testLayer.id == layerIDNumber
+					layer.style.cssText = layerRecord
 					
 				this.lastAppliedTime = event.time
 				
@@ -730,26 +730,26 @@ class Recorder
 	record: (timestamp) =>
 		return unless this.isRecording
 		
-		blockRecords = {}
-		blockRecordCount = 0
-		for block in this.relevantLayerGetter()
-			continue if block.skipRecording
+		layerRecords = {}
+		layerRecordCount = 0
+		for layer in this.relevantLayerGetter()
+			continue if layer.skipRecording
 			
 			# Find the last time this layer appeared in our recording.
-			lastBlockRecord = null
+			lastLayerRecord = null
 			for recordedEvent in this.recordedEvents by -1
-				lastBlockRecord = recordedEvent.blockRecords[block.id]
-				break if lastBlockRecord
+				lastLayerRecord = recordedEvent.layerRecords[layer.id]
+				break if lastLayerRecord
 				
-			style = block.style.cssText
-			if lastBlockRecord != style
-				blockRecords[block.id] = style
-				blockRecordCount += 1
+			style = layer.style.cssText
+			if lastLayerRecord != style
+				layerRecords[layer.id] = style
+				layerRecordCount += 1
 				
-		if blockRecordCount > 0
+		if layerRecordCount > 0
 			event = 
 				time: timestamp - this.baseRecordingTime
-				blockRecords: blockRecords
+				layerRecords: layerRecords
 			this.recordedEvents.push event
 			
 		requestAnimationFrame this.record
