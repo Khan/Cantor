@@ -668,6 +668,15 @@ class Recorder
 		this.isPlayingBackRecording = true
 		this.play this.basePlaybackTime
 		
+		this.playingLayer = new TextLayer
+			parent: rootLayer
+			x: Align.left(40)
+			y: Align.bottom(-53)
+			fontSize: 32
+			autoSize: true
+			color: kaColors.cs1
+			text: "Playing…"
+		
 		return unless this.recorder
 		this.recorder.getBuffer (buffers) =>
 			newSource = this.audioContext.createBufferSource()
@@ -697,12 +706,22 @@ class Recorder
 				
 				if event == this.recordedEvents[this.recordedEvents.length - 1]
 					this.isPlayingBackRecording = false
+					this.playingLayer.destroy()
 					return
 				else
 					break
 		requestAnimationFrame this.play
 					
 	startRecording: =>
+		this.recordingLayer = new TextLayer
+			parent: rootLayer
+			x: Align.left(40)
+			y: Align.bottom(-53)
+			fontSize: 32
+			autoSize: true
+			color: kaColors.humanities1
+			text: "Recording…"
+	
 		this.isRecording = true	
 		actuallyStartRecording = =>
 			this.clear()
@@ -723,6 +742,7 @@ class Recorder
 			actuallyStartRecording()
 		
 	stopRecording: =>
+		this.recordingLayer?.destroy()
 		this.isRecording = false
 		this.recorder?.stop()
 		
