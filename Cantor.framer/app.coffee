@@ -17,6 +17,7 @@ enableBackgroundGrid = true
 enableBlockGrid = true
 enableBlockGridTicks = false
 enableBlockDigitLabels = false
+enableDistinctColoringForOnesBlocks = true
 
 enableHighContrastGrid = false
 
@@ -84,7 +85,6 @@ class BlockLens extends Lens
 				parent: this
 				width: BlockLens.blockSize
 				height: BlockLens.blockSize
-				backgroundColor: kaColors.math1
 				borderColor: BlockLens.interiorBorderColor
 				borderWidth: if enableBlockGrid then 1 else 0
 			this.blockLayers.push block
@@ -197,6 +197,10 @@ class BlockLens extends Lens
 			setBorder "top", rowNumber == 0 or (rowNumber == 1 and columnNumber < this.layout.firstRowSkip)
 			setBorder "bottom", rowNumber == (lastRow - 1) or (rowNumber == (lastRow - 2) and columnNumber >= lastRowExtra)
 			setBorder "right", columnNumber == this.layout.numberOfColumns - 1 or (rowNumber == (lastRow - 1) and columnNumber == (lastRowExtra - 1))
+			
+			blockLayer.backgroundColor = if this.isBeingTouched then kaColors.math3 else kaColors.math1
+			if enableDistinctColoringForOnesBlocks and blockNumber >= Math.floor(this.value / this.layout.numberOfColumns) * this.layout.numberOfColumns
+				blockLayer.backgroundColor = if this.isBeingTouched then kaColors.science3 else kaColors.science1
 				
 		# Resize lens to fit blocks.
 		contentFrame = this.contentFrame()
@@ -250,9 +254,8 @@ class BlockLens extends Lens
 	
 	#gets called on touch down and touch up events
 	setBeingTouched: (isBeingTouched) ->
-		for block in this.blockLayers
-			block.backgroundColor = if isBeingTouched then kaColors.math3 else kaColors.math1
-			
+		this.isBeingTouched = isBeingTouched
+		this.update()			
 			
 	splitAt: (rowSplitIndex) ->
 		newValueA = Math.min(rowSplitIndex * this.layout.numberOfColumns - this.layout.firstRowSkip, this.value)
