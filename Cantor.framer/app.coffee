@@ -510,10 +510,12 @@ class Wedge extends Layer
 			this.parent.update(true)
 			
 		this.draggable.on Events.DragEnd, (event) =>
-			if (this.minX <= this.parent.width) and (this.parent.layout.rowSplitIndex > 0)
+			if (this.minX <= this.parent.width) and (this.parent.layout.rowSplitIndex > 0) and (this.parent.layout.rowSplitIndex <= Math.floor(this.parent.value / this.parent.layout.numberOfColumns))
 				this.parent.splitAt(this.parent.layout.rowSplitIndex)
 			else
-				this.animate { properties: { x: this.parent.width + Wedge.restingX }, time: 0.2 }
+				this.animate
+					properties: { x: this.parent.width + Wedge.restingX, y: 0 }
+					time: 0.2
 			
 		this.onTap (event) -> event.stopPropagation()
 
