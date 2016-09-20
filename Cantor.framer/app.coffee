@@ -111,11 +111,26 @@ class BlockLens extends Lens
 			
 		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
 		
+		this.tensLabel = new TextLayer
+			parent: this
+			fontFamily: "Helvetica"
+			color: kaColors.math2
+			autoSize: true
+			fontSize: 36
+			visible: false
+			
+		this.onesLabel = new TextLayer
+			parent: this
+			fontFamily: "Helvetica"
+			color: kaColors.cs2
+			autoSize: true
+			fontSize: 36
+		
 		this.wedge = new Wedge { parent: this }
 		
 		this.resizeHandle = new ResizeHandle {parent: this}
 		
-		this.reflowHandle = new ReflowHandle {parent: this}
+		this.reflowHandle = new ReflowHandle {parent: this, opacity: 0}
 		this.reflowHandle.midY = BlockLens.blockSize / 2 + 2
 		this.reflowHandle.maxX = 0
 		
@@ -200,7 +215,7 @@ class BlockLens extends Lens
 			
 			blockLayer.backgroundColor = if this.isBeingTouched then kaColors.math3 else kaColors.math1
 			if enableDistinctColoringForOnesBlocks and blockNumber >= Math.floor(this.value / this.layout.numberOfColumns) * this.layout.numberOfColumns
-				blockLayer.backgroundColor = if this.isBeingTouched then kaColors.science3 else kaColors.science1
+				blockLayer.backgroundColor = if this.isBeingTouched then kaColors.cs3 else kaColors.cs1
 				
 		# Resize lens to fit blocks.
 		contentFrame = this.contentFrame()
@@ -231,6 +246,16 @@ class BlockLens extends Lens
 		if not this.wedge.draggable.isDragging
 			this.wedge.x = this.width + Wedge.restingX
 			
+		this.tensLabel.text = "#{Math.floor(this.value / this.layout.numberOfColumns)}∙#{this.layout.numberOfColumns}"
+		this.tensLabel.maxX = -20
+		this.tensLabel.midY = 20
+		this.tensLabel.visible = this.value > this.layout.numberOfColumns
+		
+		this.onesLabel.text = "#{this.value % this.layout.numberOfColumns}∙1"
+		this.onesLabel.maxX = if this.layout.numberOfColumns == 10 then -39 else -20
+		this.onesLabel.midY = this.height - 20
+		this.onesLabel.visible = (this.value % this.layout.numberOfColumns) != 0
+			
 	layoutReflowHandle: (animated) ->
 # 		this.reflowHandle.animate
 # 			properties:
@@ -243,7 +268,6 @@ class BlockLens extends Lens
 		selection?.setSelected(false) if selection != this
 		this.borderWidth = if isSelected then selectionBorderWidth else 0
 		this.resizeHandle.visible = isSelected
-		this.reflowHandle.visible = isSelected
 		this.wedge.visible = isSelected
 		
 		if (isSelected and selection != this) or (not isSelected and selection == this)
@@ -251,6 +275,11 @@ class BlockLens extends Lens
 			this.y += if isSelected then -selectionBorderWidth else selectionBorderWidth
 			
 		selection = if isSelected then this else null
+
+		this.reflowHandle.ignoreEvents = not isSelected
+		this.reflowHandle.animate { properties: {opacity: if isSelected then 1 else 0}, time: 0.15 }
+		this.tensLabel.animate { properties: {opacity: if isSelected then 0 else 1}, time: 0.15 }
+		this.onesLabel.animate { properties: {opacity: if isSelected then 0 else 1}, time: 0.15 }
 	
 	#gets called on touch down and touch up events
 	setBeingTouched: (isBeingTouched) ->
@@ -438,11 +467,17 @@ class ResizeHandle extends Layer
 			
 			# This is pretty hacky, even for a prototype. Eh.
 			this.parent.wedge.animate { properties: { opacity: 0 }, time: 0.2 }
+			this.parent.reflowHandle.animate { properties: {opacity: 0}, time: 0.15 }
+			this.parent.tensLabel.animate { properties: {opacity: 1}, time: 0.15 }
+			this.parent.onesLabel.animate { properties: {opacity: 1}, time: 0.15 }
 			
 		this.knob.onTouchEnd =>
 			knobDot.animate { properties: { scale: 1 }, time: 0.2 }
 			verticalKnobTrack.animate { properties: { opacity: 0 }, time: 0.2}
 			this.parent.wedge.animate { properties: { opacity: 1 }, time: 0.4, delay: 0.4 }
+			this.parent.reflowHandle.animate { properties: {opacity: 1}, time: 0.15 }
+			this.parent.tensLabel.animate { properties: {opacity: 0}, time: 0.15 }
+			this.parent.onesLabel.animate { properties: {opacity: 0}, time: 0.15 }
 		
 		this.knob.onPan (event) =>
 			knob.y += event.delta.y
