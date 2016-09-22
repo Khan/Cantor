@@ -15,9 +15,10 @@ shouldReflowSecondAdditionArgument = true
 
 enableBackgroundGrid = true
 enableBlockGrid = true
-enableBlockGridTicks = false
-enableBlockDigitLabels = false
 enableDistinctColoringForOnesBlocks = true
+
+layoutVertically = true
+showSums = false
 
 enableHighContrastGrid = false
 
@@ -88,27 +89,7 @@ class BlockLens extends Lens
 				borderColor: BlockLens.interiorBorderColor
 				borderWidth: if enableBlockGrid then 1 else 0
 			this.blockLayers.push block
-				
-		if enableBlockGridTicks
-			this.onesTick = new Layer
-				parent: this
-				backgroundColor: kaColors.white
-				x: BlockLens.blockSize * 5 - 1
-				y: 0
-				width: 2
-				height: BlockLens.blockSize
-				
-			this.tensTicks = []
-			for tensTickIndex in [0...Math.floor(this.value / 20)]
-				tensTick = new Layer
-					parent: this
-					backgroundColor: kaColors.white
-					x: 0
-					y: BlockLens.blockSize * (tensTickIndex + 1) * 2
-					width: BlockLens.blockSize * 10
-					height: 2
-				this.tensTicks.push(tensTick)
-			
+							
 		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
 		
 		this.tensLabel = new TextLayer
@@ -132,14 +113,43 @@ class BlockLens extends Lens
 			color: kaColors.cs2
 			autoSize: true
 			fontSize: 36
+			
+		this.plusLabel1 = new TextLayer
+			parent: this
+			fontFamily: "Helvetica"
+			color: kaColors.gray68
+			autoSize: true
+			fontSize: 36
+			text: "+"
+			
+		this.plusLabel2 = new TextLayer
+			parent: this
+			fontFamily: "Helvetica"
+			color: kaColors.gray68
+			autoSize: true
+			fontSize: 36
+			text: "+"
+			
+		this.equalsLabel = new TextLayer
+			parent: this
+			fontFamily: "Helvetica"
+			color: kaColors.gray68
+			autoSize: true
+			fontSize: 36
+		this.labels = [this.extraOnesLabel, this.plusLabel1, this.tensLabel, this.plusLabel2, this.onesLabel]
+		this.animatableLabels = this.labels.concat this.equalsLabel
 		
 		this.wedge = new Wedge { parent: this }
 		
 		this.resizeHandle = new ResizeHandle {parent: this}
 		
 		this.reflowHandle = new ReflowHandle {parent: this, opacity: 0}
-		this.reflowHandle.midY = BlockLens.blockSize / 2 + 2
-		this.reflowHandle.maxX = 0
+		if layoutVertically
+			this.reflowHandle.midX = BlockLens.blockSize / 2 + 2
+			this.reflowHandle.maxY = 0
+		else
+			this.reflowHandle.maxX = 0
+			this.reflowHandle.midY = BlockLens.blockSize / 2 + 2
 		
 		this.draggable.enabled = true
 		this.draggable.momentum = false
@@ -166,22 +176,6 @@ class BlockLens extends Lens
 			event.stopPropagation()
 			this.setSelected(true) unless this.draggable.isDragging
 			
-		if enableBlockDigitLabels
-			this.digitLabel = new TextLayer
-				x: 42
-				fontFamily: "Helvetica"
-				text: this.value
-				parent: this
-				color: kaColors.math1
-				fontSize: 34
-				autoSize: true
-				backgroundColor: "rgba(255, 255, 255, 1.0)"
-				borderRadius: 5
-				textAlign: "center"
-				paddingTop: 5
-			this.digitLabel.width += 12
-			this.digitLabel.height += 5
-				
 		this.update()
 		this.resizeHandle.updatePosition false
 		this.layoutReflowHandle false
@@ -200,11 +194,14 @@ class BlockLens extends Lens
 			blockLayer = this.blockLayers[blockNumber]
 			indexForLayout = blockNumber + this.layout.firstRowSkip
 			columnNumber = indexForLayout % this.layout.numberOfColumns
-			newX = BlockLens.blockSize * columnNumber
 			rowNumber = Math.floor(indexForLayout / this.layout.numberOfColumns)
-			newY = BlockLens.blockSize * rowNumber
+			newX = BlockLens.blockSize * if layoutVertically then rowNumber else columnNumber
+			newY = BlockLens.blockSize * if layoutVertically then columnNumber else rowNumber
 			if (this.layout.rowSplitIndex != null) and (rowNumber >= this.layout.rowSplitIndex)
-				newY += Wedge.splitY
+				if layoutVertically
+					newX += Wedge.splitY
+				else
+					newY += Wedge.splitY
 			if animated
 				blockLayer.animate {properties: {x: newX, y: newY}, time: 0.15}
 			else
@@ -213,6 +210,9 @@ class BlockLens extends Lens
 			# Update the borders:
 			heavyStrokeColor = kaColors.white
 			setBorder = (side, heavy) ->
+				if layoutVertically
+					substitutionTable = {"left": "top", "top": "left", "right": "bottom", "bottom": "right"}
+					side = substitutionTable[side]
 				blockLayer.style["border-#{side}-color"] = if heavy then heavyStrokeColor else BlockLens.interiorBorderColor
 				blockLayer.style["border-#{side}-width"] = if heavy then "2px" else "#{BlockLens.interiorBorderWidth}px"
 			
@@ -228,48 +228,75 @@ class BlockLens extends Lens
 		# Resize lens to fit blocks.
 		contentFrame = this.contentFrame()
 		this.width = BlockLens.blockSize * this.layout.numberOfColumns + 2
-		this.height = this.blockLayers[this.value - 1].maxY + 2
-
-		# Update the grid ticks:
-		if enableBlockGridTicks
-			this.onesTick.height = Math.floor((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns) * BlockLens.blockSize
-			# If the first row starts after 5, hide the ones tick.
-			if this.layout.firstRowSkip >= 5
-				this.onesTick.y = BlockLens.blockSize
-				this.onesTick.height -= BlockLens.blockSize
-			else
-				this.onesTick.y = 0
-			# If the last row doesn't reach the 5s place, make it a bit shorter.
-			lastRowLength = (this.value + this.layout.firstRowSkip) % this.layout.numberOfColumns
-			this.onesTick.height += BlockLens.blockSize if lastRowLength >= 5
-			this.onesTick.visible = Math.min(this.value, this.layout.numberOfColumns) >= 5
-			tensTick.width = (BlockLens.blockSize * this.layout.numberOfColumns) for tensTick in this.tensTicks
+		this.height = BlockLens.blockSize * lastRow + 2
+		if layoutVertically
+			[this.width, this.height] = [this.height, this.width]
 			
-		if enableBlockDigitLabels
-			this.digitLabel.midY = this.height / 2
-		
 		this.resizeHandle.visible = (selection == this) and (this.layout.state != "tentativeReceiving")
 		this.resizeHandle.updateSublayers()
 		
 		if not this.wedge.draggable.isDragging
-			this.wedge.x = this.width + Wedge.restingX
+			if layoutVertically
+				this.wedge.y = this.height + Wedge.restingX
+			else
+				this.wedge.x = this.width + Wedge.restingX
 			
-		numberOfTens = (this.value - (lastRowExtra % this.layout.numberOfColumns) - (if this.layout.firstRowSkip > 0 then this.layout.numberOfColumns - this.layout.firstRowSkip else 0))
-		this.tensLabel.text = "#{numberOfTens / this.layout.numberOfColumns}∙#{this.layout.numberOfColumns}"
-		this.tensLabel.maxX = -20
-		this.tensLabel.midY = if this.layout.firstRowSkip > 0 then 20 + BlockLens.blockSize else 20
-		this.tensLabel.visible = numberOfTens > 0
+		countOfBlocksInFullRows = (this.value - (lastRowExtra % this.layout.numberOfColumns) - (if this.layout.firstRowSkip > 0 then this.layout.numberOfColumns - this.layout.firstRowSkip else 0))
+		countOfFullRows = countOfBlocksInFullRows / this.layout.numberOfColumns
+		this.tensLabel.text = "#{countOfBlocksInFullRows}"
+		if layoutVertically
+			this.tensLabel.y = this.height + (if this.resizeHandle.isDragging then 60 else 20)
+			this.tensLabel.midX = (if this.layout.firstRowSkip > 0 then BlockLens.blockSize else 0) + BlockLens.blockSize * countOfFullRows/2
+		else
+			this.tensLabel.maxX = -20
+			this.tensLabel.midY = if this.layout.firstRowSkip > 0 then 20 + BlockLens.blockSize else 20
+		this.tensLabel.visible = countOfFullRows > 0
 		
-		this.onesLabel.text = "#{lastRowExtra}∙1"
-		this.onesLabel.maxX = if this.layout.numberOfColumns == 10 then -39 else -20
-		this.onesLabel.midY = this.height - 20
+		this.onesLabel.text = "#{lastRowExtra}"
+		if layoutVertically
+			this.onesLabel.y = this.tensLabel.y
+			this.onesLabel.midX = this.width - BlockLens.blockSize / 2
+		else
+			this.onesLabel.maxX = if this.layout.numberOfColumns == 10 then -39 else -20
+			this.onesLabel.midY = this.height - 20
 		this.onesLabel.visible = lastRowExtra != this.layout.numberOfColumns
 		
-		this.extraOnesLabel.text = "#{this.layout.numberOfColumns - this.layout.firstRowSkip}∙1"
-		this.extraOnesLabel.maxX = if this.layout.numberOfColumns == 10 then -39 else -20
-		this.extraOnesLabel.midY = 20
+		this.extraOnesLabel.text = "#{this.layout.numberOfColumns - this.layout.firstRowSkip}"
+		if layoutVertically
+			this.extraOnesLabel.midX = BlockLens.blockSize / 2
+			this.extraOnesLabel.y = this.onesLabel.y
+		else
+			this.extraOnesLabel.maxX = if this.layout.numberOfColumns == 10 then -39 else -20
+			this.extraOnesLabel.midY = 20
 		this.extraOnesLabel.visible = this.layout.firstRowSkip > 0
+		
+		numberOfVisibleLabels = this.tensLabel.visible + this.onesLabel.visible + this.extraOnesLabel.visible
+		if layoutVertically
+			this.plusLabel2.visible = numberOfVisibleLabels > 1
+			this.plusLabel2.y = this.extraOnesLabel.y
+			this.plusLabel2.midX = ((if this.extraOnesLabel.visible then this.extraOnesLabel else this.tensLabel).maxX + (if (this.extraOnesLabel.visible and this.tensLabel.visible) then this.tensLabel else this.onesLabel).x) / 2
+			this.plusLabel1.visible = numberOfVisibleLabels > 2
+			this.plusLabel1.y = this.extraOnesLabel.y
+			this.plusLabel1.midX = (this.tensLabel.maxX + this.onesLabel.x) / 2
 			
+		# Make sure each label has room.
+		labelSpacing = 10
+		labelWidths = -labelSpacing
+		labelWidths += (label.width + labelSpacing) for label in this.labels when label.visible
+		if labelWidths > this.width
+			margin = (this.width - labelWidths) / 2
+			workingX = margin
+			for label in this.labels
+				continue unless label.visible
+				label.x = workingX
+				workingX += label.width + labelSpacing
+			
+		this.equalsLabel.y = this.extraOnesLabel.y
+		this.equalsLabel.text = "= #{this.value}"
+		this.equalsLabel.x = (if this.onesLabel.visible then this.onesLabel else this.tensLabel).maxX + 15
+		this.equalsLabel.visible = showSums and (numberOfVisibleLabels > 1)
+				
+					
 	layoutReflowHandle: (animated) ->
 # 		this.reflowHandle.animate
 # 			properties:
@@ -278,6 +305,7 @@ class BlockLens extends Lens
 # 			time: if animated then 0.1 else 0
 			
 	setSelected: (isSelected) ->
+		this.update()
 		selectionBorderWidth = 1
 		selection?.setSelected(false) if selection != this
 		this.borderWidth = if isSelected then selectionBorderWidth else 0
@@ -292,9 +320,7 @@ class BlockLens extends Lens
 
 		this.reflowHandle.ignoreEvents = not isSelected
 		this.reflowHandle.animate { properties: {opacity: if isSelected then 1 else 0}, time: 0.15 }
-		this.tensLabel.animate { properties: {opacity: if isSelected then 0 else 1}, time: 0.15 }
-		this.onesLabel.animate { properties: {opacity: if isSelected then 0 else 1}, time: 0.15 }
-		this.extraOnesLabel.animate { properties: {opacity: if isSelected then 0 else 1}, time: 0.15 }
+		label.animate { properties: {opacity: if isSelected then 0 else 1}, time: 0.15 } for label in this.animatableLabels
 	
 	#gets called on touch down and touch up events
 	setBeingTouched: (isBeingTouched) ->
@@ -318,8 +344,8 @@ class BlockLens extends Lens
 		newBlockB = new BlockLens
 			value: newValueB
 			parent: this.parent
-			x: this.x
-			y: newBlockA.maxY + Wedge.splitY
+			x: if layoutVertically then newBlockA.maxX + Wedge.splitY else this.x
+			y: if layoutVertically then this.y else newBlockA.maxY + Wedge.splitY
 			layout: this.layout
 		
 		this.destroy()
@@ -340,35 +366,54 @@ class ReflowHandle extends Layer
 		
 		verticalBrace = new Layer
 			parent: this
-			width: 5
-			height: BlockLens.blockSize
-			maxX: this.maxX
-			midY: this.midY
 			backgroundColor: kaColors.math2
+		if layoutVertically
+			verticalBrace.width = BlockLens.blockSize
+			verticalBrace.height = 5
+			verticalBrace.midX = this.midX
+			verticalBrace.maxY = this.maxY
+		else
+			verticalBrace.width = 5
+			verticalBrace.height = BlockLens.blockSize
+			verticalBrace.maxX = this.maxX
+			verticalBrace.midY = this.midY
 		
 		horizontalBrace = new Layer
 			parent: this
-			width: ReflowHandle.knobRightMargin + ReflowHandle.knobSize / 2
-			height: 2
-			maxX: verticalBrace.x
-			midY: this.midY
 			backgroundColor: kaColors.math2
+		if layoutVertically
+			horizontalBrace.width = 2
+			horizontalBrace.height = ReflowHandle.knobRightMargin + ReflowHandle.knobSize / 2
+			horizontalBrace.midX = verticalBrace.midX
+			horizontalBrace.maxY = verticalBrace.y
+		else
+			horizontalBrace.width = ReflowHandle.knobRightMargin + ReflowHandle.knobSize / 2
+			horizontalBrace.height = 2
+			horizontalBrace.maxX = verticalBrace.x
+			horizontalBrace.midY = this.midY
 		
 		knob = new Layer
 			parent: this
 			backgroundColor: kaColors.math2
 			width: ReflowHandle.knobSize
 			height: ReflowHandle.knobSize
-			midX: horizontalBrace.x
-			midY: this.midY
 			borderRadius: ReflowHandle.knobSize / 2
-						
+		if layoutVertically
+			knob.midY = horizontalBrace.y
+			knob.midX = this.midX
+		else
+			knob.midX = horizontalBrace.x
+			knob.midY = this.midY						
 			
 		verticalKnobTrack = new Layer
 			parent: this
-			width: 2
-			midX: knob.midX
 			opacity: 0
+		if layoutVertically
+			verticalKnobTrack.height = 2
+			verticalKnobTrack.midY = knob.midY
+		else
+			verticalKnobTrack.width = 2
+			verticalKnobTrack.midX = knob.midX
 		verticalKnobTrack.sendToBack()
 			
 		updateVerticalKnobTrackGradient = =>
@@ -378,10 +423,14 @@ class ReflowHandle extends Layer
 			transparentTrackColor = "rgba(85, 209, 229, 0.0)"
 			
 			bottomFadeStartingHeight = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob - fadeLength
-			verticalKnobTrack.height = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob
-			verticalKnobTrack.y = -trackLengthBeyondKnob + this.midY + Math.min(0, knob.midY)
-			verticalKnobTrack.style["-webkit-mask-image"] = "url(images/dash.png)"
-			verticalKnobTrack.style.background = "-webkit-linear-gradient(top, #{transparentTrackColor} 0%, #{trackColor} #{fadeLength}px, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
+			if layoutVertically
+				verticalKnobTrack.width = trackLengthBeyondKnob + Math.abs(knob.midX) + trackLengthBeyondKnob
+				verticalKnobTrack.x = -trackLengthBeyondKnob + this.midX + Math.min(0, knob.midX)
+			else
+				verticalKnobTrack.height = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob
+				verticalKnobTrack.y = -trackLengthBeyondKnob + this.midY + Math.min(0, knob.midY)
+			verticalKnobTrack.style["-webkit-mask-image"] = "url(images/#{if layoutVertically then "dash-rotated" else "dash"}.png)"
+			verticalKnobTrack.style.background = "-webkit-linear-gradient(#{if layoutVertically then "left" else "top"}, #{transparentTrackColor} 0%, #{trackColor} #{fadeLength}px, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
 			
 		updateVerticalKnobTrackGradient()
 		
@@ -394,18 +443,24 @@ class ReflowHandle extends Layer
 			verticalKnobTrack.animate { properties: {opacity: 0}, time: 0.2}
 			
 		this.onPan (event) ->
-			knob.y += event.delta.y
-			this.x += event.delta.x
+			if layoutVertically
+				knob.x += event.delta.x
+				this.y += event.delta.y
+			else
+				knob.y += event.delta.y
+				this.x += event.delta.x
 			updateVerticalKnobTrackGradient()
 			
-			this.parent.layout.firstRowSkip = utils.clip(Math.ceil(this.maxX / BlockLens.blockSize), 0, this.parent.layout.numberOfColumns - 1)
+			this.parent.layout.firstRowSkip = utils.clip(Math.ceil((if layoutVertically then this.maxY else this.maxX) / BlockLens.blockSize), 0, this.parent.layout.numberOfColumns - 1)
 			this.parent.update()
 
 			event.stopPropagation()
 			
 		this.onPanEnd =>
 			isAnimating = true
-			knobAnimation = knob.animate { properties: {midY: this.height / 2}, time: 0.2 }
+			knobAnimation = knob.animate
+				properties: if layoutVertically then {midX: this.width / 2} else {midY: this.height / 2},
+				time: 0.2
 			knobAnimation.on Events.AnimationEnd, ->
 				isAnimating = false
 				
@@ -415,7 +470,9 @@ class ReflowHandle extends Layer
 				requestAnimationFrame updateVerticalTrackForAnimation
 			requestAnimationFrame updateVerticalTrackForAnimation
 			
-			this.animate { properties: { maxX: BlockLens.blockSize * this.parent.layout.firstRowSkip }, time: 0.2}
+			this.animate
+				properties: if layoutVertically then { maxY: BlockLens.blockSize * this.parent.layout.firstRowSkip } else { maxX: BlockLens.blockSize * this.parent.layout.firstRowSkip }
+				time: 0.2
 			
 			event.stopPropagation()
 			
@@ -428,38 +485,53 @@ class ResizeHandle extends Layer
 		throw "Requires parent layer" if args.parent == null
 		
 		super args
+		knobSize = 88
 		this.props =
 			backgroundColor: ""
-			width: 88
+		if layoutVertically
+			this.height = knobSize
+		else
+			this.width = knobSize
 		
 		knob = new Layer
 			parent: this
 			backgroundColor: ""
-			midX: this.midX + ResizeHandle.knobHitTestBias
-			width: this.width
-			height: this.width
+			width: knobSize
+			height: knobSize
 		this.knob = knob
+		if layoutVertically
+			this.knob.midY = this.midY + ResizeHandle.knobHitTestBias
+		else
+			this.knob.midX = this.midX + ResizeHandle.knobHitTestBias
 		
 		knobDot = new Layer
 			parent: knob
 			backgroundColor: kaColors.math2
-			midX: knob.width / 2 - ResizeHandle.knobHitTestBias
-			midY: knob.midY -  ResizeHandle.knobHitTestBias
 			width: ResizeHandle.knobSize
 			height: ResizeHandle.knobSize
 			borderRadius: ResizeHandle.knobSize / 2
+			midX: knob.width / 2 - ResizeHandle.knobHitTestBias
+			midY: knob.height / 2 - ResizeHandle.knobHitTestBias
 			
 		this.verticalBrace = new Layer
 			parent: this
-			width: 5
-			midX: this.midX
 			backgroundColor: kaColors.math2
+		if layoutVertically
+			this.verticalBrace.height = 5
+			this.verticalBrace.midY = this.midY
+		else
+			this.verticalBrace.width = 5
+			this.verticalBrace.midX = this.midX
 			
 		verticalKnobTrack = new Layer
 			parent: this
-			width: 2
-			midX: this.midX
 			opacity: 0
+		if layoutVertically
+			verticalKnobTrack.height = 2
+			verticalKnobTrack.midY = this.midY
+		else
+			verticalKnobTrack.width = 2
+			verticalKnobTrack.midX = this.midX
 		verticalKnobTrack.sendToBack()
 			
 		this.updateVerticalKnobTrackGradient = =>
@@ -468,40 +540,52 @@ class ResizeHandle extends Layer
 			trackColor = kaColors.math2
 			transparentTrackColor = "rgba(85, 209, 229, 0.0)"
 			
-			bottomFadeStartingHeight = knob.midY - this.verticalBrace.maxY
-			verticalKnobTrack.height = knob.midY - this.verticalBrace.maxY + trackLengthBeyondKnob
-			verticalKnobTrack.y = this.verticalBrace.maxY
-			verticalKnobTrack.style["-webkit-mask-image"] = "url(images/dash.png)"
-			verticalKnobTrack.style.background = "-webkit-linear-gradient(top, #{trackColor} 0%, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
+			bottomFadeStartingHeight = if layoutVertically then knob.midX - this.verticalBrace.maxX else knob.midY - this.verticalBrace.maxY
+			if layoutVertically
+				verticalKnobTrack.width = knob.midX - this.verticalBrace.maxX + trackLengthBeyondKnob
+				verticalKnobTrack.x = this.verticalBrace.maxX
+			else
+				verticalKnobTrack.height = knob.midY - this.verticalBrace.maxY + trackLengthBeyondKnob
+				verticalKnobTrack.y = this.verticalBrace.maxY
+			verticalKnobTrack.style["-webkit-mask-image"] = "url(images/#{if layoutVertically then "dash-rotated" else "dash"}.png)"
+			verticalKnobTrack.style.background = "-webkit-linear-gradient(#{if layoutVertically then "left" else "top"}, #{trackColor} 0%, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
 			
 		this.updateVerticalKnobTrackGradient()
 		
 		this.knob.onTouchStart =>
+			this.isDragging = true
+			this.parent.update()
 			knobDot.animate { properties: { scale: 2 }, time: 0.2 }
 			verticalKnobTrack.animate { properties: { opacity: 1 }, time: 0.2}
 			
 			# This is pretty hacky, even for a prototype. Eh.
 			this.parent.wedge.animate { properties: { opacity: 0 }, time: 0.2 }
 			this.parent.reflowHandle.animate { properties: {opacity: 0}, time: 0.15 }
-			this.parent.tensLabel.animate { properties: {opacity: 1}, time: 0.15 }
-			this.parent.onesLabel.animate { properties: {opacity: 1}, time: 0.15 }
-			this.parent.extraOnesLabel.animate { properties: {opacity: 1}, time: 0.15 }
+			label.animate { properties: {opacity: 1}, time: 0.15 } for label in this.parent.animatableLabels
 			
 		this.knob.onTouchEnd =>
 			knobDot.animate { properties: { scale: 1 }, time: 0.2 }
 			verticalKnobTrack.animate { properties: { opacity: 0 }, time: 0.2}
 			this.parent.wedge.animate { properties: { opacity: 1 }, time: 0.4, delay: 0.4 }
 			this.parent.reflowHandle.animate { properties: {opacity: 1}, time: 0.15 }
-			this.parent.tensLabel.animate { properties: {opacity: 0}, time: 0.15 }
-			this.parent.onesLabel.animate { properties: {opacity: 0}, time: 0.15 }
-			this.parent.extraOnesLabel.animate { properties: {opacity: 0}, time: 0.15 }
+			label.animate { properties: {opacity: 0}, time: 0.15 } for label in this.parent.animatableLabels
+			setTimeout(=>
+				this.isDragging = false
+			, 100)
 		
 		this.knob.onPan (event) =>
-			knob.y += event.delta.y
-			this.x += event.delta.x
+			value = null
+			if layoutVertically
+				knob.x += event.delta.x
+				this.y += event.delta.y
+				value = (this.y + this.verticalBrace.y)
+			else
+				knob.y += event.delta.y
+				this.x += event.delta.x
+				value = (this.x + this.verticalBrace.x)
 			this.updateVerticalKnobTrackGradient()
 			
-			this.parent.layout.numberOfColumns = Math.max(1, Math.floor((this.x + this.verticalBrace.x) / BlockLens.blockSize))
+			this.parent.layout.numberOfColumns = Math.max(1, Math.floor(value / BlockLens.blockSize))
 			this.parent.update()
 			
 			event.stopPropagation()
@@ -511,19 +595,27 @@ class ResizeHandle extends Layer
 			event.stopPropagation()
 			
 	updateSublayers: ->
-		this.verticalBrace.y = 0
-		this.verticalBrace.height = this.parent.height - this.y
-		this.height = this.knob.maxY
+		if layoutVertically
+			this.verticalBrace.x = 0
+			this.verticalBrace.width = this.parent.width - this.x
+			this.width = this.knob.maxX
+		else
+			this.verticalBrace.y = 0
+			this.verticalBrace.height = this.parent.height - this.y
+			this.height = this.knob.maxY
 		
 	updatePosition: (animated) ->
-		this.y = 2
+		if layoutVertically
+			this.x = 2
+		else
+			this.y = 2
 		this.animate
-			properties: { midX: BlockLens.blockSize * this.parent.layout.numberOfColumns + 2 }
+			properties: if layoutVertically then { midY: BlockLens.blockSize * this.parent.layout.numberOfColumns + 2 } else { midX: BlockLens.blockSize * this.parent.layout.numberOfColumns + 2 }
 			time: if animated then 0.2 else 0
 			
 		isAnimating = true
 		knobAnimation = this.knob.animate
-			properties: { midY: this.parent.height - this.y + ResizeHandle.knobHitTestBias }
+			properties: if layoutVertically then { midX: this.parent.width - this.x + ResizeHandle.knobHitTestBias } else { midY: this.parent.height - this.y + ResizeHandle.knobHitTestBias }
 			time: if animated then 0.2 else 0
 		knobAnimation.on Events.AnimationEnd, ->
 			isAnimating = false
@@ -543,20 +635,21 @@ class Wedge extends Layer
 		throw "Requires parent layer" if args.parent == null
 		super args
 		this.props =
-			image: "images/triangle@2x.png"
-			width: 80
-			height: 40
+			image: "images/triangle#{if layoutVertically then "-rotated" else ""}@2x.png"
+			width: if layoutVertically then 40 else 80
+			height: if layoutVertically then 80 else 40
 			backgroundColor: ""
-			x: Wedge.restingX
-			scaleX: -1
 			
 		this.draggable.enabled = true
 		this.draggable.momentum = false
 		this.draggable.propagateEvents = false
 		
 		this.draggable.on Events.DragMove, (event) =>
-			this.parent.layout.rowSplitIndex = if this.minX <= this.parent.width
-				Math.round(this.midY / BlockLens.blockSize)
+			intoBlocks = if layoutVertically then this.minY else this.minX
+			alongBlocks = if layoutVertically then this.midX else this.midY
+			threshold = if layoutVertically then this.parent.height else this.parent.width
+			this.parent.layout.rowSplitIndex = if intoBlocks <= threshold
+				Math.round(alongBlocks / BlockLens.blockSize)
 			else
 				null
 			this.parent.update(true)
@@ -566,7 +659,7 @@ class Wedge extends Layer
 				this.parent.splitAt(this.parent.layout.rowSplitIndex)
 			else
 				this.animate
-					properties: { x: this.parent.width + Wedge.restingX, y: 0 }
+					properties: if layoutVertically then { y: this.parent.height + Wedge.restingX, x: 0 } else { x: this.parent.width + Wedge.restingX, y: 0 }
 					time: 0.2
 			
 		this.onTap (event) -> event.stopPropagation()
@@ -658,7 +751,9 @@ canvas.onPanStart ->
 canvas.onPan (event) ->
 	return unless isAdding
 	
-	value = 10 * Math.max(0, Math.floor((event.point.y - event.start.y) / BlockLens.blockSize)) + utils.clip(Math.ceil((event.point.x - event.start.x) / BlockLens.blockSize), 0, 10)
+	tens = if layoutVertically then event.point.x - event.start.x else event.point.y - event.start.y
+	ones = if layoutVertically then event.point.y - event.start.y else event.point.x - event.start.x
+	value = 10 * Math.max(0, Math.floor(tens / BlockLens.blockSize)) + utils.clip(Math.ceil(ones / BlockLens.blockSize), 0, 10)
 	value = Math.max(1, value)
 	return if value == pendingBlockToAdd?.value
 	
@@ -675,7 +770,7 @@ canvas.onPan (event) ->
 	
 	pendingBlockToAddLabel.visible = true
 	pendingBlockToAddLabel.text = pendingBlockToAdd.value
-	pendingBlockToAddLabel.midX = startingLocation.x + BlockLens.blockSize * 5
+	pendingBlockToAddLabel.midX = startingLocation.x + pendingBlockToAdd.width / 2
 	pendingBlockToAddLabel.y = startingLocation.y - 100
 		
 canvas.onPanEnd ->
@@ -842,14 +937,14 @@ setup = ->
 	testBlock = new BlockLens
 		value: 37
 		parent: canvas
-		x: 200
+		x: 100
 		y: 80
 		
 	testBlock2 = new BlockLens
 		value: 15
 		parent: canvas
-		x: 200
-		y: 280
+		x: 400
+		y: 80
 	
 	# testBlock2 = new BlockLens
 	# 	value: 82
