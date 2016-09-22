@@ -305,7 +305,10 @@ class BlockLens extends Lens
 		this.equalsLabel.x = (if this.onesLabel.visible then this.onesLabel else this.tensLabel).maxX + 15
 		this.equalsLabel.visible = showSums and (numberOfVisibleLabels > 1)
 		
-		label.animate {properties: {y: labelY}, time: if animated then 0.2 else 0} for label in this.animatableLabels
+		if animated
+			label.animate {properties: {y: labelY}, time: 0.2} for label in this.animatableLabels
+		else
+			label.y = labelY for label in this.animatableLabels	
 				
 					
 	layoutReflowHandle: (animated) ->
