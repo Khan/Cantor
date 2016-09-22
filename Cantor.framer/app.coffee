@@ -94,6 +94,12 @@ class BlockLens extends Lens
 		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
 		
 		this.labelOffset = 0
+		this.labelBackground = new Layer
+			parent: this
+			backgroundColor: "rgba(255, 255, 255, 0.7)"
+			borderRadius: 4
+			height: 45
+		
 		this.tensLabel = new TextLayer
 			parent: this
 			fontFamily: "Helvetica"
@@ -138,8 +144,9 @@ class BlockLens extends Lens
 			color: kaColors.gray68
 			autoSize: true
 			fontSize: 36
+			
 		this.labels = [this.extraOnesLabel, this.plusLabel1, this.tensLabel, this.plusLabel2, this.onesLabel]
-		this.animatableLabels = this.labels.concat this.equalsLabel
+		this.animatableLabels = this.labels.concat this.equalsLabel, this.labelBackground
 		
 		this.wedge = new Wedge { parent: this }
 		
@@ -281,12 +288,17 @@ class BlockLens extends Lens
 		# Make sure each label has room.
 		labelWidths = this.labelWidths()
 		if labelWidths > this.width
+			this.labelBackground.width = labelWidths + 20
 			margin = (this.width - labelWidths) / 2
 			workingX = margin
 			for label in this.labels
 				continue unless label.visible
 				label.x = workingX
 				workingX += label.width + BlockLens.labelSpacing
+		else
+			this.labelBackground.width = this.width
+				
+		this.labelBackground.midX = this.width / 2
 			
 		this.equalsLabel.animate {properties: {y: labelY}, time: 0.15}
 		this.equalsLabel.text = "= #{this.value}"
