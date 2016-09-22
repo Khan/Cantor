@@ -373,7 +373,7 @@ class BlockLens extends Lens
 canvas.updateLabelOffsets = (pivotBlock) ->
 	pivotBlock.labelOffset = 0
 	bounds = (block) ->
-		width = block.labelWidths()
+		width = Math.max(block.labelWidths(), block.width)
 		return [block.midX - width/2 - 10, block.midX + width/2 + 10]
 	[pivotMinX, pivotMaxX] = bounds(pivotBlock)
 	for block in canvas.subLayers
