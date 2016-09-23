@@ -103,24 +103,26 @@ class BlockLens extends Lens
 		this.tensLabel = new TextLayer
 			parent: this
 			fontFamily: "Helvetica"
-			color: kaColors.math2
+			color: "white"
 			autoSize: true
 			fontSize: 36
-			visible: false
+		this.tensLabel.style.textShadow = "black 0 0 2px"
 			
 		this.onesLabel = new TextLayer
 			parent: this
 			fontFamily: "Helvetica"
-			color: kaColors.cs2
+			color: "white"
 			autoSize: true
 			fontSize: 36
+		this.onesLabel.style.textShadow = "black 0 0 2px"
 			
 		this.extraOnesLabel = new TextLayer
 			parent: this
 			fontFamily: "Helvetica"
-			color: kaColors.cs2
+			color: "white"
 			autoSize: true
 			fontSize: 36
+		this.extraOnesLabel.style.textShadow = "black 0 0 2px"
 			
 		this.plusLabel1 = new TextLayer
 			parent: this
@@ -253,7 +255,7 @@ class BlockLens extends Lens
 			
 		countOfBlocksInFullRows = (this.value - (lastRowExtra % this.layout.numberOfColumns) - (if this.layout.firstRowSkip > 0 then this.layout.numberOfColumns - this.layout.firstRowSkip else 0))
 		countOfFullRows = countOfBlocksInFullRows / this.layout.numberOfColumns
-		labelY = this.height + 20 + this.labelOffset * 50
+		labelY = 30
 		this.tensLabel.text = "#{countOfBlocksInFullRows}"
 		if layoutVertically
 			this.tensLabel.midX = (if this.layout.firstRowSkip > 0 then BlockLens.blockSize else 0) + BlockLens.blockSize * countOfFullRows/2
@@ -280,9 +282,9 @@ class BlockLens extends Lens
 		
 		numberOfVisibleLabels = this.tensLabel.visible + this.onesLabel.visible + this.extraOnesLabel.visible
 		if layoutVertically
-			this.plusLabel2.visible = numberOfVisibleLabels > 1
+			this.plusLabel2.visible = false#numberOfVisibleLabels > 1
 			this.plusLabel2.midX = ((if this.extraOnesLabel.visible then this.extraOnesLabel else this.tensLabel).maxX + (if (this.extraOnesLabel.visible and this.tensLabel.visible) then this.tensLabel else this.onesLabel).x) / 2
-			this.plusLabel1.visible = numberOfVisibleLabels > 2
+			this.plusLabel1.visible = false#numberOfVisibleLabels > 2
 			this.plusLabel1.midX = (this.tensLabel.maxX + this.onesLabel.x) / 2
 			
 		# Make sure each label has room.
@@ -299,6 +301,7 @@ class BlockLens extends Lens
 			this.labelBackground.width = this.width
 				
 		this.labelBackground.midX = this.width / 2
+		this.labelBackground.visible = false
 			
 		this.equalsLabel.animate {properties: {y: labelY}, time: 0.15}
 		this.equalsLabel.text = "= #{this.value}"
@@ -309,6 +312,8 @@ class BlockLens extends Lens
 			label.animate {properties: {y: labelY}, time: 0.2} for label in this.animatableLabels
 		else
 			label.y = labelY for label in this.animatableLabels	
+		if this.layout.firstRowSkip > 0
+			this.extraOnesLabel.y = this.blockLayers[0].midY + 20
 				
 					
 	layoutReflowHandle: (animated) ->
@@ -383,7 +388,7 @@ canvas.updateLabelOffsets = (pivotBlock) ->
 		[blockMinX, blockMaxX] = bounds(block)
 		if (pivotMinX < blockMaxX) and (blockMinX < pivotMaxX)
 			pivotBlock.labelOffset = Math.max(block.labelOffset + 1, pivotBlock.labelOffset)
-	pivotBlock.update true
+# 	pivotBlock.update true
 
 class ReflowHandle extends Layer
 	this.knobSize = 30
