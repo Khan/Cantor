@@ -677,6 +677,8 @@ class Recorder
 					this.stopRecording()
 				else
 					this.startRecording()
+			if key == "D"
+				this.downloadRecording()
 		)
 		this.relevantLayerGetter = relevantLayerGetter
 	
@@ -779,17 +781,18 @@ class Recorder
 		
 	stopRecording: =>
 		this.recordingLayer?.destroy()
-		this.isRecording = false
-		
-		if this.recorder
-			this.recorder.stop()
-			this.recorder.exportWAV (blob) =>
-				recordingFilename = new Date().toISOString()
-				this.saveData blob, recordingFilename + '.wav'
+		this.isRecording = false		
+		this.recorder?.stop()
 				
-				eventsJSON = JSON.stringify(this.recordedEvents)
-				eventsBlob = new Blob [eventsJSON], {type: "application/json"}
-				this.saveData eventsBlob, recordingFilename + '.json'
+	downloadRecording: =>
+		return unless this.recorder
+		this.recorder.exportWAV (blob) =>
+			recordingFilename = new Date().toISOString()
+			this.saveData blob, recordingFilename + '.wav'
+			
+			eventsJSON = JSON.stringify(this.recordedEvents)
+			eventsBlob = new Blob [eventsJSON], {type: "application/json"}
+			this.saveData eventsBlob, recordingFilename + '.json'	
 				
 	saveData: (blob, fileName) =>
 		a = document.createElement "a"
