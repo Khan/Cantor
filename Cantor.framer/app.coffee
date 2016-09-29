@@ -135,14 +135,17 @@ class BlockLens extends Lens
 			this.bringToFront()
 			point = Canvas.convertPointToLayer({x: event.pageX, y: event.pageY}, this.parent)
 			return unless utils.pointInsideLayer(this, point)
-			this.setBeingTouched(true)
+			this.setBeingTouched(true) unless event.shiftKey
 
 		this.on Events.TouchEnd, (event, layer) ->
 			this.setBeingTouched(false)
 
 		this.onTap (event, layer) =>
 			event.stopPropagation()
-			this.setSelected(true) unless this.draggable.isDragging
+			if event.shiftKey
+				this.flash()
+			else
+				this.setSelected(true) unless this.draggable.isDragging
 			
 		if enableBlockDigitLabels
 			this.digitLabel = new TextLayer
@@ -165,12 +168,18 @@ class BlockLens extends Lens
 		this.layoutReflowHandle false
 		this.setSelected(false)
 		
+	flash: ->
+		spread = 25
+		setShadow = =>
+			spread -= 1
+			if spread <= 0
+				this.style["-webkit-filter"] = null
+			else
+				this.style["-webkit-filter"] = "drop-shadow(0px 0px #{spread}px #{kaColors.math1})"
+				requestAnimationFrame setShadow
+		setShadow()
+		
 	update: (animated) ->
-		this.style["-webkit-filter"] = switch this.layout.state 
-			when "tentative", "tentativeReceiving"
-				"drop-shadow(0px 0px 15px #{kaColors.math1})"
-			else null
-					
 		for blockNumber in [0...this.value]
 			blockLayer = this.blockLayers[blockNumber]
 			indexForLayout = blockNumber + this.layout.firstRowSkip
