@@ -559,6 +559,16 @@ addBlockPromptLabelText = new TextLayer
 	autoSize: true
 	y: Align.center()
 	width: addBlockPromptLabel.width
+
+state = 0
+nextButton = new GlobalButton
+	parent: rootLayer
+	x: Align.right(-160)
+	y: Align.bottom(-20)
+	action: ->
+		state = state + 1
+		recorder.playSavedRecording state
+nextButton.html = "<div style='color: #{kaColors.math1}; font-size: 60px; text-align: center; margin: 35% 0%'>➡️</div>"
 			
 addButton = new GlobalButton
 	parent: rootLayer
@@ -661,6 +671,17 @@ class Recorder
 		)
 		this.relevantLayerGetter = relevantLayerGetter
 	
+	playSavedRecording: (recordingName) =>
+		JSONRequest = new XMLHttpRequest()
+		JSONRequest.onreadystatechange = =>
+			if JSONRequest.readyState == 4
+				this.recordedEvents = JSON.parse(JSONRequest.responseText)
+				audio = new Audio("recordings/#{recordingName}.wav");
+				audio.play()
+				this.startPlaying()
+		JSONRequest.open "GET", "recordings/#{recordingName}.json", true
+		JSONRequest.send()
+	
 	clear: =>
 		this.recordedEvents = []
 		this.recorder?.clear()
@@ -671,7 +692,6 @@ class Recorder
 		this.basePlaybackTime = window.performance.now()
 		this.lastAppliedTime = -1
 		this.isPlayingBackRecording = true
-		this.play this.basePlaybackTime
 		
 		this.playingLayer = new TextLayer
 			parent: rootLayer
@@ -681,6 +701,8 @@ class Recorder
 			autoSize: true
 			color: kaColors.cs1
 			text: "Playing…"
+			
+		this.play this.basePlaybackTime
 		
 		return unless this.recorder
 		this.recorder.getBuffer (buffers) =>
@@ -749,7 +771,26 @@ class Recorder
 	stopRecording: =>
 		this.recordingLayer?.destroy()
 		this.isRecording = false
-		this.recorder?.stop()
+		
+		if this.recorder
+			this.recorder.stop()
+			this.recorder.exportWAV (blob) =>
+				recordingFilename = new Date().toISOString()
+				this.saveData blob, recordingFilename + '.wav'
+				
+				eventsJSON = JSON.stringify(this.recordedEvents)
+				eventsBlob = new Blob [eventsJSON], {type: "application/json"}
+				this.saveData eventsBlob, recordingFilename + '.json'
+				
+	saveData: (blob, fileName) =>
+		a = document.createElement "a"
+		document.body.appendChild a
+		a.style = "display: none";
+		url = window.URL.createObjectURL(blob)
+		a.href = url
+		a.download = fileName
+		a.click()
+		window.URL.revokeObjectURL(url)
 		
 	record: (timestamp) =>
 		return unless this.isRecording
@@ -787,17 +828,30 @@ recorder = new Recorder ->
 
 startingOffset = 40 * 60
 setup = ->
-	testBlock = new BlockLens
-		value: 37
-		parent: canvas
-		x: 200
-		y: 80
-		
 	testBlock2 = new BlockLens
-		value: 15
+		value: 10
 		parent: canvas
 		x: 200
 		y: 280
+
+	testBlock2 = new BlockLens
+		value: 11
+		parent: canvas
+		x: 900
+		y: 280
+
+	testBlock2 = new BlockLens
+		value: 12
+		parent: canvas
+		x: 200
+		y: 880
+
+	testBlock2 = new BlockLens
+		value: 13
+		parent: canvas
+		x: 900
+		y: 880
+
 	
 	# testBlock2 = new BlockLens
 	# 	value: 82
