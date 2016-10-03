@@ -208,7 +208,7 @@ class BlockLens extends Lens
 			setBorder "right", columnNumber == this.layout.numberOfColumns - 1 or (rowNumber == (lastRow - 1) and columnNumber == (lastRowExtra - 1))
 			
 			blockLayer.backgroundColor = if this.isBeingTouched then kaColors.math3 else kaColors.math1
-			if enableDistinctColoringForOnesBlocks and blockNumber >= Math.floor(this.value / this.layout.numberOfColumns) * this.layout.numberOfColumns
+			if enableDistinctColoringForOnesBlocks and ((rowNumber == (lastRow - 1) and lastRowExtra < this.layout.numberOfColumns) or (rowNumber == 0 and this.layout.firstRowSkip > 0))
 				blockLayer.backgroundColor = if this.isBeingTouched then kaColors.science3 else kaColors.science1
 				
 		# Resize lens to fit blocks.
