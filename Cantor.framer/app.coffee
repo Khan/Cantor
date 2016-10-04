@@ -176,7 +176,7 @@ class BlockLens extends Lens
 
 	getState: ->
 		value: this.value
-		layout: this.layout
+		layout: Object.assign {}, this.layout
 		isSelected: selection == this
 
 	applyState: (newState) ->
@@ -762,12 +762,30 @@ class Recorder
 					basePersistentID = persistentIDComponents[0]
 					workingLayer = relevantLayers.find (testLayer) ->
 						testLayer.persistentID == basePersistentID
+
+					# What if the base persistent layer doesn't exist? i.e. a layer was added during the recording?
+					if (not workingLayer) and persistentIDComponents.length == 1
+						# For now assume it's a BlockLens.
+						args = Object.assign {}, layerRecord.props
+						Object.assign args, layerRecord.state
+						args.persistentID = basePersistentID
+						args.parent = canvas
+						workingLayer = new BlockLens args
+
+						relevantLayers = this.relevantLayerGetter() # Recompute working set of layers...
+
 					for index in persistentIDComponents[1..]
 						workingLayer = workingLayer.children.find (child) ->
 							child.index == index
 					workingLayer.style.cssText = layerRecord.style
+					workingLayer.props = layerRecord.props
 					if layerRecord.state
 						workingLayer.applyState layerRecord.state
+
+				# Clean up all persistent IDs that don't appear in the list.
+				for layer in relevantLayers when layer.persistentID
+					if !event.persistentIDs.has(layer.persistentID)
+						layer.destroy()
 
 				this.lastAppliedTime = event.time
 
@@ -833,7 +851,7 @@ class Recorder
 		a.click()
 		window.URL.revokeObjectURL(url)
 
-	persistentIDForLayer: (layer) =>
+	recordingIDForLayer: (layer) =>
 		# TODO: cache?
 		if layer.persistentID then return layer.persistentID
 		path = layer.index
@@ -849,29 +867,34 @@ class Recorder
 
 		layerRecords = {}
 		layerRecordCount = 0
+		persistentIDs = new Set
 		for layer in this.relevantLayerGetter()
 			continue if layer.skipRecording
-			persistentID = this.persistentIDForLayer(layer)
-			continue unless persistentID
+			recordingID = this.recordingIDForLayer(layer)
+			continue unless recordingID
 
 			# Find the last time this layer appeared in our recording.
 			lastLayerRecord = null
 			for recordedEvent in this.recordedEvents by -1
-				lastLayerRecord = recordedEvent.layerRecords[persistentID]
+				lastLayerRecord = recordedEvent.layerRecords[recordingID]
 				break if lastLayerRecord
 
-			style = layer.style.cssText
+			props = layer.props
 			# Here assuming that the state can't change if the style doesn't change. Not a great long-term assumption.
-			if lastLayerRecord?.style != style
-				layerRecords[persistentID] =
-					style: style
+			if !lastLayerRecord or !deepEqual(lastLayerRecord.props, props)
+				layerRecords[recordingID] =
+					props: props
+					style: layer.style.cssText # We write down both props and style because some style stuff is not captured in props. This is super wasteful.
 					state: layer.getState?()
 				layerRecordCount += 1
+
+			persistentIDs.add layer.persistentID if layer.persistentID
 
 		if layerRecordCount > 0
 			event =
 				time: timestamp - this.baseRecordingTime
 				layerRecords: layerRecords
+				persistentIDs: persistentIDs
 			this.recordedEvents.push event
 
 		requestAnimationFrame this.record
