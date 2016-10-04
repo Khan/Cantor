@@ -7,6 +7,7 @@ kaColors = require "kaColors"
 utils = require "utils"
 {TextLayer} = require "TextLayer"
 RecorderUtility = require "recorder"
+{deepEqual} = require "npm"
 
 # Configuration, constants
 
@@ -37,6 +38,7 @@ canvasComponent = new ScrollComponent
 	width: rootLayer.width
 	height: rootLayer.height
 canvas = canvasComponent.content
+canvas.nextPersistentID = 1 # TODO: Make a real canvas data structure...
 canvas.onTap (event, layer) ->
 	selection?.setSelected(false) if not layer.draggable.isDragging
 canvasComponent.content.pinchable.enabled = true
@@ -45,7 +47,7 @@ canvasComponent.content.pinchable.maxScale = 2
 canvasComponent.content.pinchable.rotate = false
 
 if enableBackgroundGrid
-	grid = new Layer 
+	grid = new Layer
 		parent: canvas
 		width: Screen.width * 10
 		height: Screen.height * 10
@@ -60,25 +62,29 @@ class Lens extends Layer
 		super args
 		this.backgroundColor = ""
 		this.value = args.value
+		this.persistentID = args.persistentID
+		if !this.persistentID
+			this.persistentID = canvas.nextPersistentID
+			canvas.nextPersistentID += 1
 		if debugShowLensFrames
 			this.borderColor = "red"
 			this.borderWidth = 1
-		
+
 class BlockLens extends Lens
 	this.blockSize = 40
 	this.interiorBorderColor = if enableBlockGrid then "rgba(85, 209, 229, 0.4)" else ""
 	this.interiorBorderWidth = if enableBlockGrid then 1 else 0
-		
+
 	constructor: (args) ->
 		super args
-		
+
 		this.layout = if args.layout
 			Object.assign({}, args.layout)
 		else
 			numberOfColumns: 10
 			firstRowSkip: 0
 			state: "static"
-		
+
 		this.blockLayers = []
 		for blockNumber in [0...this.value]
 			block = new Layer
@@ -88,7 +94,7 @@ class BlockLens extends Lens
 				borderColor: BlockLens.interiorBorderColor
 				borderWidth: if enableBlockGrid then 1 else 0
 			this.blockLayers.push block
-				
+
 		if enableBlockGridTicks
 			this.onesTick = new Layer
 				parent: this
@@ -97,7 +103,7 @@ class BlockLens extends Lens
 				y: 0
 				width: 2
 				height: BlockLens.blockSize
-				
+
 			this.tensTicks = []
 			for tensTickIndex in [0...Math.floor(this.value / 20)]
 				tensTick = new Layer
@@ -108,28 +114,28 @@ class BlockLens extends Lens
 					width: BlockLens.blockSize * 10
 					height: 2
 				this.tensTicks.push(tensTick)
-			
+
 		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
-		
+
 		this.wedge = new Wedge { parent: this }
-		
+
 		this.resizeHandle = new ResizeHandle {parent: this}
-		
+
 		this.reflowHandle = new ReflowHandle {parent: this}
 		this.reflowHandle.midY = BlockLens.blockSize / 2 + 2
 		this.reflowHandle.maxX = 0
-		
+
 		this.draggable.enabled = true
 		this.draggable.momentum = false
 		this.draggable.propagateEvents = false
-		
+
 		this.draggable.on Events.DragEnd, (event) =>
 			this.animate
 				properties:
 					x: Math.round(this.x / BlockLens.blockSize) * BlockLens.blockSize
 					y: Math.round(this.y / BlockLens.blockSize) * BlockLens.blockSize
 				time: 0.2
-	
+
 		# Hello greetings. You will notice that these TouchStart and TouchEnd methods have some hit testing garbage in them. That's because Framer can't deal with event cancellation correctly for this highlight behavior vs. children's gestures (i.e. the reflow handle and wedge). This is sad. Maybe someday we'll make Framer better.
 		this.on Events.TouchStart, (event, layer) ->
 			this.bringToFront()
@@ -146,7 +152,7 @@ class BlockLens extends Lens
 				this.flash()
 			else
 				this.setSelected(true) unless this.draggable.isDragging
-			
+
 		if enableBlockDigitLabels
 			this.digitLabel = new TextLayer
 				x: 42
@@ -162,12 +168,28 @@ class BlockLens extends Lens
 				paddingTop: 5
 			this.digitLabel.width += 12
 			this.digitLabel.height += 5
-				
+
 		this.update()
 		this.resizeHandle.updatePosition false
 		this.layoutReflowHandle false
 		this.setSelected(false)
-		
+
+	getState: ->
+		value: this.value
+		layout: this.layout
+		isSelected: selection == this
+
+	applyState: (newState) ->
+		this.value = newState.value
+		Object.assign this.layout, newState.layout
+
+		if selection != this and newState.isSelected
+			this.setSelected true
+		else if selection == this and not newState.isSelected
+			this.setSelected false
+
+		this.update false
+
 	flash: ->
 		spread = 25
 		setShadow = =>
@@ -178,7 +200,7 @@ class BlockLens extends Lens
 				this.style["-webkit-filter"] = "drop-shadow(0px 0px #{spread}px #{kaColors.math1})"
 				requestAnimationFrame setShadow
 		setShadow()
-		
+
 	update: (animated) ->
 		for blockNumber in [0...this.value]
 			blockLayer = this.blockLayers[blockNumber]
@@ -193,24 +215,24 @@ class BlockLens extends Lens
 				blockLayer.animate {properties: {x: newX, y: newY}, time: 0.15}
 			else
 				blockLayer.props = {x: newX, y: newY}
-				
+
 			# Update the borders:
 			heavyStrokeColor = kaColors.white
 			setBorder = (side, heavy) ->
 				blockLayer.style["border-#{side}-color"] = if heavy then heavyStrokeColor else BlockLens.interiorBorderColor
 				blockLayer.style["border-#{side}-width"] = if heavy then "2px" else "#{BlockLens.interiorBorderWidth}px"
-			
+
 			lastRow = Math.ceil((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns)
 			lastRowExtra = (this.value + this.layout.firstRowSkip) - (lastRow - 1) * this.layout.numberOfColumns
 			setBorder "left", columnNumber == 0 or blockNumber == 0
 			setBorder "top", rowNumber == 0 or (rowNumber == 1 and columnNumber < this.layout.firstRowSkip)
 			setBorder "bottom", rowNumber == (lastRow - 1) or (rowNumber == (lastRow - 2) and columnNumber >= lastRowExtra)
 			setBorder "right", columnNumber == this.layout.numberOfColumns - 1 or (rowNumber == (lastRow - 1) and columnNumber == (lastRowExtra - 1))
-			
+
 			blockLayer.backgroundColor = if this.isBeingTouched then kaColors.math3 else kaColors.math1
 			if enableDistinctColoringForOnesBlocks and ((rowNumber == (lastRow - 1) and lastRowExtra < this.layout.numberOfColumns) or (rowNumber == 0 and this.layout.firstRowSkip > 0))
 				blockLayer.backgroundColor = if this.isBeingTouched then kaColors.science3 else kaColors.science1
-				
+
 		# Resize lens to fit blocks.
 		contentFrame = this.contentFrame()
 		this.width = BlockLens.blockSize * this.layout.numberOfColumns + 2
@@ -230,23 +252,23 @@ class BlockLens extends Lens
 			this.onesTick.height += BlockLens.blockSize if lastRowLength >= 5
 			this.onesTick.visible = Math.min(this.value, this.layout.numberOfColumns) >= 5
 			tensTick.width = (BlockLens.blockSize * this.layout.numberOfColumns) for tensTick in this.tensTicks
-			
+
 		if enableBlockDigitLabels
 			this.digitLabel.midY = this.height / 2
-		
+
 		this.resizeHandle.visible = (selection == this) and (this.layout.state != "tentativeReceiving")
 		this.resizeHandle.updateSublayers()
-		
+
 		if not this.wedge.draggable.isDragging
 			this.wedge.x = this.width + Wedge.restingX
-			
+
 	layoutReflowHandle: (animated) ->
 # 		this.reflowHandle.animate
 # 			properties:
 # 				x: Math.max(-BlockLens.resizeHandleSize / 2, this.reflowHandle.x)
 # 				y: (BlockLens.blockSize - BlockLens.resizeHandleSize) / 2
 # 			time: if animated then 0.1 else 0
-			
+
 	setSelected: (isSelected) ->
 		selectionBorderWidth = 1
 		selection?.setSelected(false) if selection != this
@@ -254,31 +276,31 @@ class BlockLens extends Lens
 		this.resizeHandle.visible = isSelected
 		this.reflowHandle.visible = isSelected
 		this.wedge.visible = isSelected
-		
+
 		if (isSelected and selection != this) or (not isSelected and selection == this)
 			this.x += if isSelected then -selectionBorderWidth else selectionBorderWidth
 			this.y += if isSelected then -selectionBorderWidth else selectionBorderWidth
-			
+
 		selection = if isSelected then this else null
-	
+
 	#gets called on touch down and touch up events
 	setBeingTouched: (isBeingTouched) ->
 		this.isBeingTouched = isBeingTouched
-		this.update()			
-			
+		this.update()
+
 	splitAt: (rowSplitIndex) ->
 		newValueA = Math.min(rowSplitIndex * this.layout.numberOfColumns - this.layout.firstRowSkip, this.value)
 		newValueB = this.value - newValueA
-		
+
 		this.layout.rowSplitIndex = null
-		
+
 		newBlockA = new BlockLens
 			value: newValueA
 			parent: this.parent
 			x: this.x
 			y: this.y
 			layout: this.layout
-		
+
 		this.layout.firstRowSkip = 0
 		newBlockB = new BlockLens
 			value: newValueB
@@ -286,7 +308,7 @@ class BlockLens extends Lens
 			x: this.x
 			y: newBlockA.maxY + Wedge.splitY
 			layout: this.layout
-		
+
 		this.destroy()
 
 
@@ -296,13 +318,13 @@ class ReflowHandle extends Layer
 
 	constructor: (args) ->
 		throw "Requires parent layer" if args.parent == null
-		
+
 		super args
 		this.props =
 			backgroundColor: ""
 			width: 110
 			height: 110
-		
+
 		verticalBrace = new Layer
 			parent: this
 			width: 5
@@ -310,7 +332,7 @@ class ReflowHandle extends Layer
 			maxX: this.maxX
 			midY: this.midY
 			backgroundColor: kaColors.math2
-		
+
 		horizontalBrace = new Layer
 			parent: this
 			width: ReflowHandle.knobRightMargin + ReflowHandle.knobSize / 2
@@ -318,7 +340,7 @@ class ReflowHandle extends Layer
 			maxX: verticalBrace.x
 			midY: this.midY
 			backgroundColor: kaColors.math2
-		
+
 		knob = new Layer
 			parent: this
 			backgroundColor: kaColors.math2
@@ -327,63 +349,63 @@ class ReflowHandle extends Layer
 			midX: horizontalBrace.x
 			midY: this.midY
 			borderRadius: ReflowHandle.knobSize / 2
-						
-			
+
+
 		verticalKnobTrack = new Layer
 			parent: this
 			width: 2
 			midX: knob.midX
 			opacity: 0
 		verticalKnobTrack.sendToBack()
-			
+
 		updateVerticalKnobTrackGradient = =>
 			fadeLength = 75
 			trackLengthBeyondKnob = 200
 			trackColor = kaColors.math2
 			transparentTrackColor = "rgba(85, 209, 229, 0.0)"
-			
+
 			bottomFadeStartingHeight = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob - fadeLength
 			verticalKnobTrack.height = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob
 			verticalKnobTrack.y = -trackLengthBeyondKnob + this.midY + Math.min(0, knob.midY)
 			verticalKnobTrack.style["-webkit-mask-image"] = "url(images/dash.png)"
 			verticalKnobTrack.style.background = "-webkit-linear-gradient(top, #{transparentTrackColor} 0%, #{trackColor} #{fadeLength}px, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
-			
+
 		updateVerticalKnobTrackGradient()
-		
+
 		this.onTouchStart ->
 			knob.animate { properties: {scale: 2}, time: 0.2 }
 			verticalKnobTrack.animate { properties: {opacity: 1}, time: 0.2}
-			
+
 		this.onTouchEnd ->
 			knob.animate { properties: {scale: 1}, time: 0.2 }
 			verticalKnobTrack.animate { properties: {opacity: 0}, time: 0.2}
-			
+
 		this.onPan (event) ->
 			knob.y += event.delta.y
 			this.x += event.delta.x
 			updateVerticalKnobTrackGradient()
-			
+
 			this.parent.layout.firstRowSkip = utils.clip(Math.ceil(this.maxX / BlockLens.blockSize), 0, this.parent.layout.numberOfColumns - 1)
 			this.parent.update()
 
 			event.stopPropagation()
-			
+
 		this.onPanEnd =>
 			isAnimating = true
 			knobAnimation = knob.animate { properties: {midY: this.height / 2}, time: 0.2 }
 			knobAnimation.on Events.AnimationEnd, ->
 				isAnimating = false
-				
+
 			updateVerticalTrackForAnimation = ->
 				return unless isAnimating
 				updateVerticalKnobTrackGradient()
 				requestAnimationFrame updateVerticalTrackForAnimation
 			requestAnimationFrame updateVerticalTrackForAnimation
-			
+
 			this.animate { properties: { maxX: BlockLens.blockSize * this.parent.layout.firstRowSkip }, time: 0.2}
-			
+
 			event.stopPropagation()
-			
+
 class ResizeHandle extends Layer
 	this.knobSize = 30
 	# This is kinda complicated... because we don't want touches on the resize handle to conflict with touches on the blocks themselves, we make it easier to "miss" the resize handle down and to the right of its actual position than up or to the left.
@@ -391,12 +413,12 @@ class ResizeHandle extends Layer
 
 	constructor: (args) ->
 		throw "Requires parent layer" if args.parent == null
-		
+
 		super args
 		this.props =
 			backgroundColor: ""
 			width: 88
-		
+
 		knob = new Layer
 			parent: this
 			backgroundColor: ""
@@ -404,7 +426,7 @@ class ResizeHandle extends Layer
 			width: this.width
 			height: this.width
 		this.knob = knob
-		
+
 		knobDot = new Layer
 			parent: knob
 			backgroundColor: kaColors.math2
@@ -413,85 +435,85 @@ class ResizeHandle extends Layer
 			width: ResizeHandle.knobSize
 			height: ResizeHandle.knobSize
 			borderRadius: ResizeHandle.knobSize / 2
-			
+
 		this.verticalBrace = new Layer
 			parent: this
 			width: 5
 			midX: this.midX
 			backgroundColor: kaColors.math2
-			
+
 		verticalKnobTrack = new Layer
 			parent: this
 			width: 2
 			midX: this.midX
 			opacity: 0
 		verticalKnobTrack.sendToBack()
-			
+
 		this.updateVerticalKnobTrackGradient = =>
 			fadeLength = 150
 			trackLengthBeyondKnob = 250
 			trackColor = kaColors.math2
 			transparentTrackColor = "rgba(85, 209, 229, 0.0)"
-			
+
 			bottomFadeStartingHeight = knob.midY - this.verticalBrace.maxY
 			verticalKnobTrack.height = knob.midY - this.verticalBrace.maxY + trackLengthBeyondKnob
 			verticalKnobTrack.y = this.verticalBrace.maxY
 			verticalKnobTrack.style["-webkit-mask-image"] = "url(images/dash.png)"
 			verticalKnobTrack.style.background = "-webkit-linear-gradient(top, #{trackColor} 0%, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
-			
+
 		this.updateVerticalKnobTrackGradient()
-		
+
 		this.knob.onTouchStart =>
 			knobDot.animate { properties: { scale: 2 }, time: 0.2 }
 			verticalKnobTrack.animate { properties: { opacity: 1 }, time: 0.2}
-			
+
 			# This is pretty hacky, even for a prototype. Eh.
 			this.parent.wedge.animate { properties: { opacity: 0 }, time: 0.2 }
-			
+
 		this.knob.onTouchEnd =>
 			knobDot.animate { properties: { scale: 1 }, time: 0.2 }
 			verticalKnobTrack.animate { properties: { opacity: 0 }, time: 0.2}
 			this.parent.wedge.animate { properties: { opacity: 1 }, time: 0.4, delay: 0.4 }
-		
+
 		this.knob.onPan (event) =>
 			knob.y += event.delta.y
 			this.x += event.delta.x
 			this.updateVerticalKnobTrackGradient()
-			
+
 			this.parent.layout.numberOfColumns = Math.max(1, Math.floor((this.x + this.verticalBrace.x) / BlockLens.blockSize))
 			this.parent.update()
-			
+
 			event.stopPropagation()
-			
-		this.knob.onPanEnd =>			
+
+		this.knob.onPanEnd =>
 			this.updatePosition true
 			event.stopPropagation()
-			
+
 	updateSublayers: ->
 		this.verticalBrace.y = 0
 		this.verticalBrace.height = this.parent.height - this.y
 		this.height = this.knob.maxY
-		
+
 	updatePosition: (animated) ->
 		this.y = 2
 		this.animate
 			properties: { midX: BlockLens.blockSize * this.parent.layout.numberOfColumns + 2 }
 			time: if animated then 0.2 else 0
-			
+
 		isAnimating = true
 		knobAnimation = this.knob.animate
 			properties: { midY: this.parent.height - this.y + ResizeHandle.knobHitTestBias }
 			time: if animated then 0.2 else 0
 		knobAnimation.on Events.AnimationEnd, ->
 			isAnimating = false
-			
+
 		updateVerticalTrackForAnimation = =>
 			this.updateSublayers()
 			return unless isAnimating
 			this.updateVerticalKnobTrackGradient()
 			requestAnimationFrame updateVerticalTrackForAnimation
 		requestAnimationFrame updateVerticalTrackForAnimation
-			
+
 class Wedge extends Layer
 	this.restingX = 30
 	this.splitY = BlockLens.blockSize
@@ -506,18 +528,18 @@ class Wedge extends Layer
 			backgroundColor: ""
 			x: Wedge.restingX
 			scaleX: -1
-			
+
 		this.draggable.enabled = true
 		this.draggable.momentum = false
 		this.draggable.propagateEvents = false
-		
+
 		this.draggable.on Events.DragMove, (event) =>
 			this.parent.layout.rowSplitIndex = if this.minX <= this.parent.width
 				Math.round(this.midY / BlockLens.blockSize)
 			else
 				null
 			this.parent.update(true)
-			
+
 		this.draggable.on Events.DragEnd, (event) =>
 			if (this.minX <= this.parent.width) and (this.parent.layout.rowSplitIndex > 0) and (this.parent.layout.rowSplitIndex <= Math.floor(this.parent.value / this.parent.layout.numberOfColumns))
 				this.parent.splitAt(this.parent.layout.rowSplitIndex)
@@ -525,7 +547,7 @@ class Wedge extends Layer
 				this.animate
 					properties: { x: this.parent.width + Wedge.restingX, y: 0 }
 					time: 0.2
-			
+
 		this.onTap (event) -> event.stopPropagation()
 
 # Controls
@@ -543,7 +565,7 @@ class GlobalButton extends Layer
 		Object.assign(props, args)
 		this.props = props
 		this.action = args.action
-		
+
 		originalBackgroundColor = this.backgroundColor
 		this.onTouchStart ->
 			this.backgroundColor = kaColors.gray95
@@ -551,7 +573,7 @@ class GlobalButton extends Layer
 		this.onTouchEnd ->
 			this.backgroundColor = originalBackgroundColor
 			this.action?()
-			
+
 addBlockPromptLabel = new Layer
 	parent: rootLayer
 	width: rootLayer.width
@@ -578,14 +600,14 @@ nextButton = new GlobalButton
 		state = state + 1
 		recorder.playSavedRecording state
 nextButton.html = "<div style='color: #{kaColors.math1}; font-size: 60px; text-align: center; margin: 35% 0%'>➡️</div>"
-			
+
 addButton = new GlobalButton
 	parent: rootLayer
 	x: Align.right(-20)
 	y: Align.bottom(-20)
 	action: ->
 		setIsAdding(not isAdding)
-			 
+
 isAdding = null
 setIsAdding = (newIsAdding) ->
 	return if newIsAdding == isAdding
@@ -598,7 +620,7 @@ setIsAdding = (newIsAdding) ->
 		properties: {y: if isAdding then 0 else -addBlockPromptLabel.height}
 		time: 0.2
 	addButton.html = "<div style='color: #{kaColors.math1}; font-size: 70px; text-align: center; margin: 25% 0%'>#{if isAdding then 'x' else '+'}</div>"
-		
+
 setIsAdding(false)
 
 pendingBlockToAdd = null
@@ -616,19 +638,19 @@ pendingBlockToAddLabel = new TextLayer
 	paddingRight: 10
 	paddingBottom: 10
 	borderRadius: 4
-	
+
 canvas.onPanStart ->
 	return unless isAdding
 
 	pendingBlockToAddLabel.bringToFront()
-		
+
 canvas.onPan (event) ->
 	return unless isAdding
-	
+
 	value = 10 * Math.max(0, Math.floor((event.point.y - event.start.y) / BlockLens.blockSize)) + utils.clip(Math.ceil((event.point.x - event.start.x) / BlockLens.blockSize), 0, 10)
 	value = Math.max(1, value)
 	return if value == pendingBlockToAdd?.value
-	
+
 	startingLocation = Screen.convertPointToLayer(event.start, canvas)
 	startingLocation.x = Math.floor(startingLocation.x / BlockLens.blockSize) * BlockLens.blockSize
 	startingLocation.y = Math.floor(startingLocation.y / BlockLens.blockSize) * BlockLens.blockSize - BlockLens.blockSize * 1
@@ -639,17 +661,17 @@ canvas.onPan (event) ->
 		y: startingLocation.y
 		value: value
 	pendingBlockToAdd.borderWidth = 1
-	
+
 	pendingBlockToAddLabel.visible = true
 	pendingBlockToAddLabel.text = pendingBlockToAdd.value
 	pendingBlockToAddLabel.midX = startingLocation.x + BlockLens.blockSize * 5
 	pendingBlockToAddLabel.y = startingLocation.y - 100
-		
+
 canvas.onPanEnd ->
 	return unless isAdding
 	pendingBlockToAdd?.borderWidth = 0
 	pendingBlockToAdd = null
-	
+
 	pendingBlockToAddLabel.visible = false
 	setIsAdding false
 
@@ -660,12 +682,12 @@ class Recorder
 	recordedEvents: []
 	isPlayingBackRecording: false
 	isRecording: false
-	
+
 	constructor: (relevantLayerGetter) ->
 		window.AudioContext = window.AudioContext || window.webkitAudioContext
 		navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia
 		this.audioContext = new AudioContext
-		
+
 		window.addEventListener("keydown", (event) =>
 			key = String.fromCharCode(event.keyCode)
 			if key == "C"
@@ -681,7 +703,7 @@ class Recorder
 				this.downloadRecording()
 		)
 		this.relevantLayerGetter = relevantLayerGetter
-	
+
 	playSavedRecording: (recordingName) =>
 		JSONRequest = new XMLHttpRequest()
 		JSONRequest.onreadystatechange = =>
@@ -692,18 +714,18 @@ class Recorder
 				this.startPlaying()
 		JSONRequest.open "GET", "recordings/#{recordingName}.json", true
 		JSONRequest.send()
-	
+
 	clear: =>
 		this.recordedEvents = []
 		this.recorder?.clear()
-		
+
 	startPlaying: =>
 		return if this.isRecording or this.isPlayingBackRecording
-		
+
 		this.basePlaybackTime = window.performance.now()
 		this.lastAppliedTime = -1
 		this.isPlayingBackRecording = true
-		
+
 		this.playingLayer = new TextLayer
 			parent: rootLayer
 			x: Align.left(40)
@@ -712,9 +734,9 @@ class Recorder
 			autoSize: true
 			color: kaColors.cs1
 			text: "Playing…"
-			
+
 		this.play this.basePlaybackTime
-		
+
 		return unless this.recorder
 		this.recorder.getBuffer (buffers) =>
 			newSource = this.audioContext.createBufferSource()
@@ -733,15 +755,22 @@ class Recorder
 			if event.time <= (timestamp - this.basePlaybackTime) and event.time > this.lastAppliedTime
 				relevantLayers = this.relevantLayerGetter()
 				# Found it! Apply each layer's record:
-				for layerID, layerRecord of event.layerRecords
+				for layerPersistentID, layerRecord of event.layerRecords
 					# Find the live layer layer that corresponds to this.
-					layerIDNumber = parseInt(layerID) # lol javascript
-					layer = relevantLayers.find (testLayer) ->
-						return testLayer.id == layerIDNumber
-					layer.style.cssText = layerRecord
-					
+					# TODO: something less stupid slow... if it ends up being necessary.
+					persistentIDComponents = layerPersistentID.split("/").map (component) -> parseInt(component)
+					basePersistentID = persistentIDComponents[0]
+					workingLayer = relevantLayers.find (testLayer) ->
+						testLayer.persistentID == basePersistentID
+					for index in persistentIDComponents[1..]
+						workingLayer = workingLayer.children.find (child) ->
+							child.index == index
+					workingLayer.style.cssText = layerRecord.style
+					if layerRecord.state
+						workingLayer.applyState layerRecord.state
+
 				this.lastAppliedTime = event.time
-				
+
 				if event == this.recordedEvents[this.recordedEvents.length - 1]
 					this.isPlayingBackRecording = false
 					this.playingLayer.destroy()
@@ -749,7 +778,7 @@ class Recorder
 				else
 					break
 		requestAnimationFrame this.play
-					
+
 	startRecording: =>
 		this.recordingLayer = new TextLayer
 			parent: rootLayer
@@ -759,13 +788,13 @@ class Recorder
 			autoSize: true
 			color: kaColors.humanities1
 			text: "Recording…"
-	
-		this.isRecording = true	
+
+		this.isRecording = true
 		actuallyStartRecording = =>
 			this.clear()
 			this.baseRecordingTime = window.performance.now()
 			this.record this.baseRecordingTime
-	
+
 		if navigator.getUserMedia
 			navigator.getUserMedia({audio: true}, (stream) =>
 				input = this.audioContext.createMediaStreamSource stream
@@ -778,22 +807,22 @@ class Recorder
 			)
 		else
 			actuallyStartRecording()
-		
+
 	stopRecording: =>
 		this.recordingLayer?.destroy()
-		this.isRecording = false		
+		this.isRecording = false
 		this.recorder?.stop()
-				
+
 	downloadRecording: =>
 		return unless this.recorder
 		this.recorder.exportWAV (blob) =>
 			recordingFilename = new Date().toISOString()
 			this.saveData blob, recordingFilename + '.wav'
-			
+
 			eventsJSON = JSON.stringify(this.recordedEvents)
 			eventsBlob = new Blob [eventsJSON], {type: "application/json"}
-			this.saveData eventsBlob, recordingFilename + '.json'	
-				
+			this.saveData eventsBlob, recordingFilename + '.json'
+
 	saveData: (blob, fileName) =>
 		a = document.createElement "a"
 		document.body.appendChild a
@@ -803,32 +832,48 @@ class Recorder
 		a.download = fileName
 		a.click()
 		window.URL.revokeObjectURL(url)
-		
+
+	persistentIDForLayer: (layer) =>
+		# TODO: cache?
+		if layer.persistentID then return layer.persistentID
+		path = layer.index
+		currentLayer = layer.parent
+		while currentLayer and currentLayer != canvas
+			currentLayerComponent = currentLayer.persistentID || currentLayer.index
+			path = "#{currentLayerComponent}/#{path}"
+			return path if currentLayer.persistentID
+			currentLayer = currentLayer.parent
+
 	record: (timestamp) =>
 		return unless this.isRecording
-		
+
 		layerRecords = {}
 		layerRecordCount = 0
 		for layer in this.relevantLayerGetter()
 			continue if layer.skipRecording
-			
+			persistentID = this.persistentIDForLayer(layer)
+			continue unless persistentID
+
 			# Find the last time this layer appeared in our recording.
 			lastLayerRecord = null
 			for recordedEvent in this.recordedEvents by -1
-				lastLayerRecord = recordedEvent.layerRecords[layer.id]
+				lastLayerRecord = recordedEvent.layerRecords[persistentID]
 				break if lastLayerRecord
-				
+
 			style = layer.style.cssText
-			if lastLayerRecord != style
-				layerRecords[layer.id] = style
+			# Here assuming that the state can't change if the style doesn't change. Not a great long-term assumption.
+			if lastLayerRecord?.style != style
+				layerRecords[persistentID] =
+					style: style
+					state: layer.getState?()
 				layerRecordCount += 1
-				
+
 		if layerRecordCount > 0
-			event = 
+			event =
 				time: timestamp - this.baseRecordingTime
 				layerRecords: layerRecords
 			this.recordedEvents.push event
-			
+
 		requestAnimationFrame this.record
 
 recorder = new Recorder ->
@@ -864,18 +909,18 @@ setup = ->
 		x: 900
 		y: 880
 
-	
+
 	# testBlock2 = new BlockLens
 	# 	value: 82
 	# 	parent: canvas
 	# 	x: 200
 	# 	y: 600
-	
+
 	for sublayer in canvas.subLayers
 		continue unless (sublayer instanceof BlockLens)
 		sublayer.x += startingOffset
 		sublayer.y += startingOffset
-		
+
 setup()
 
 canvasComponent.scrollX = startingOffset
