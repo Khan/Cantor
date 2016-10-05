@@ -1,3 +1,30 @@
+# Overview
+
 Prototypes around a medium and toolset for exploring quantities and arithmetic operations.
 
-c.f. http://klr.tumblr.com/post/147245626988/a-medium-supporting-the-exploration-of-quantities
+More notes here to come, but in the meantime:
+* [A medium supporting the exploration of quantities](http://klr.tumblr.com/post/147245626988/a-medium-supporting-the-exploration-of-quantities)
+* [Old and new ways of looking at number](http://klr.tumblr.com/post/149677916243/old-and-new-ways-of-looking-at-numbers)
+
+# Recording
+
+We're interested in Cantor interactions which trade off control between recordings and the student. I expect we'll write about that more extensively eventually, but in the meantime, to record an interactive:
+
+* **Get Cantor ready for recording** (Chrome tries to protect you but gets in the way!)
+ * Open the project in Framer.
+ * Click the "Mirror" toolbar icon, then "Open in Browser".
+ * Copy that URL, then paste it into Chrome Canary.
+ * Change the IP address in the address bar (e.g. `10.0.0.15`) to `localhost` and hit Return.
+* **Record a segment**:
+ * Press the "R" key to start recording (you'll have to approve mic usage the first time).
+ * Press the "R" key again when you're done.
+ * Press the "P" key to play back the last recorded segment.
+ * Press the "D" key to download the last recorded segment (a `wav` and a `json` file).
+* **Arrange segments into an interactive sequence**:
+ * Put the `wav` and `json` files in `Cantor.framer/recordings`.
+ * Rename them as `1.json`, `2.json`, etc in the order you'd like them to be sequenced.
+* **Play back a sequence**:
+ * Use the ➡ button to play the next segment in the sequence stored in `recordings`.
+* **Share a sequence**:
+ * Get the files in `recordings` as you want them.
+ * Click the "Share" toolbar icon in Framer.
