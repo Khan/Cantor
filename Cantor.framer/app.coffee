@@ -64,8 +64,8 @@ class Lens extends Layer
 		this.value = args.value
 		this.persistentID = args.persistentID
 		if !this.persistentID
-			# Recording-created persistent IDs should be in a different "namespace" than users'.
-			this.persistentID = canvas.nextPersistentID * (if recorder.isRecording then -1 else 1)
+			# Recordings' persistent IDs should be in a different "namespace" than users'.
+			this.persistentID = canvas.nextPersistentID * (if (recorder.isRecording or (args.derivingFrom?.persistentID < 0)) then -1 else 1)
 			canvas.nextPersistentID += 1
 		if debugShowLensFrames
 			this.borderColor = "red"
@@ -301,6 +301,7 @@ class BlockLens extends Lens
 			x: this.x
 			y: this.y
 			layout: this.layout
+			derivingFrom: this
 
 		this.layout.firstRowSkip = 0
 		newBlockB = new BlockLens
@@ -309,6 +310,7 @@ class BlockLens extends Lens
 			x: this.x
 			y: newBlockA.maxY + Wedge.splitY
 			layout: this.layout
+			derivingFrom: this
 
 		this.destroy()
 
@@ -709,11 +711,16 @@ class Recorder
 		JSONRequest = new XMLHttpRequest()
 		JSONRequest.onreadystatechange = =>
 			if JSONRequest.readyState == 4
-				this.recordedEvents = JSON.parse(JSONRequest.responseText)
-				audio = new Audio("recordings/#{recordingName}.wav");
+				this.recordedEvents = JSON.parse(JSONRequest.responseText, (key, value) ->
+					if key == "persistentIDs"
+						return new Set(value)
+					else
+						return value
+				)
+				audio = new Audio("recordings/#{recordingName}.wav?nocache=#{Date.now()}");
 				audio.play()
 				this.startPlaying()
-		JSONRequest.open "GET", "recordings/#{recordingName}.json", true
+		JSONRequest.open "GET", "recordings/#{recordingName}.json?nocache=#{Date.now()}", true
 		JSONRequest.send()
 
 	clear: =>
@@ -784,7 +791,7 @@ class Recorder
 						workingLayer.applyState layerRecord.state
 
 				# Clean up all persistent IDs that don't appear in the list.
-				for layer in relevantLayers when layer.persistentID
+				for layer in relevantLayers when layer.persistentID < 0 # < 0 here coupled with recording-created namespacing.
 					if !event.persistentIDs.has(layer.persistentID)
 						layer.destroy()
 
@@ -838,7 +845,14 @@ class Recorder
 			recordingFilename = new Date().toISOString()
 			this.saveData blob, recordingFilename + '.wav'
 
-			eventsJSON = JSON.stringify(this.recordedEvents)
+			eventsJSON = JSON.stringify(this.recordedEvents, (key, value) ->
+				if key == "persistentIDs"
+					return Array.from(value)
+				else if value instanceof Color
+					return value.toRgbString()
+				else
+					return value
+			)
 			eventsBlob = new Blob [eventsJSON], {type: "application/json"}
 			this.saveData eventsBlob, recordingFilename + '.json'
 
