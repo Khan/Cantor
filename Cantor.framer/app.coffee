@@ -707,6 +707,8 @@ class Recorder
 		)
 		this.relevantLayerGetter = relevantLayerGetter
 
+		this.ignoredPersistentIDs = new Set()
+
 	playSavedRecording: (recordingName) =>
 		JSONRequest = new XMLHttpRequest()
 		JSONRequest.onreadystatechange = =>
@@ -718,6 +720,7 @@ class Recorder
 						return value
 				)
 				audio = new Audio("recordings/#{recordingName}.wav?nocache=#{Date.now()}");
+				audio.addEventListener "ended", () => this.stopPlaying()
 				audio.play()
 				this.startPlaying()
 		JSONRequest.open "GET", "recordings/#{recordingName}.json?nocache=#{Date.now()}", true
@@ -726,6 +729,7 @@ class Recorder
 	clear: =>
 		this.recordedEvents = []
 		this.recorder?.clear()
+		this.ignoredPersistentIDs.clear()
 
 	startPlaying: =>
 		return if this.isRecording or this.isPlayingBackRecording
@@ -752,11 +756,11 @@ class Recorder
 			newBuffer.getChannelData(0).set buffers[0]
 			newBuffer.getChannelData(1).set buffers[1]
 			newSource.buffer = newBuffer
+			newSource.addEventListener "ended", (event) => this.stopPlaying()
 			newSource.connect this.audioContext.destination
 			newSource.start 0
 
 	play: (timestamp) =>
-		shouldStop = false
 		# Find the relevant event...
 		for event in this.recordedEvents by -1
 			# We'll play the soonest event we haven't already played.
@@ -768,6 +772,7 @@ class Recorder
 					# TODO: something less stupid slow... if it ends up being necessary.
 					persistentIDComponents = layerPersistentID.split("/").map (component) -> parseInt(component)
 					basePersistentID = persistentIDComponents[0]
+					continue if this.ignoredPersistentIDs.has(basePersistentID)
 					workingLayer = relevantLayers.find (testLayer) ->
 						testLayer.persistentID == basePersistentID
 
@@ -798,12 +803,19 @@ class Recorder
 				this.lastAppliedTime = event.time
 
 				if event == this.recordedEvents[this.recordedEvents.length - 1]
-					this.isPlayingBackRecording = false
-					this.playingLayer.destroy()
 					return
 				else
 					break
 		requestAnimationFrame this.play
+
+	stopPlaying: =>
+		this.isPlayingBackRecording = false
+		this.playingLayer.destroy()
+
+		if this.recordedEvents.length > 0
+			lastEvent = this.recordedEvents[this.recordedEvents.length - 1]
+			lastEvent.persistentIDs.forEach (persistentID) =>
+				this.ignoredPersistentIDs.add	persistentID
 
 	startRecording: =>
 		this.recordingLayer = new TextLayer
