@@ -2,16 +2,16 @@
   "propertyPanelToggleStates" : {
 
   },
-  "deviceOrientation" : 90,
+  "deviceOrientation" : 0,
   "sharedPrototype" : 1,
   "contentScale" : 1,
-  "deviceType" : "apple-ipad-air-2-silver",
+  "deviceType" : "apple-macbook-pro",
   "selectedHand" : "",
   "updateDelay" : 0.3,
   "deviceScale" : "fit",
   "foldedCodeRanges" : [
 
   ],
-  "orientation" : 90,
+  "orientation" : 0,
   "fullScreen" : false
 }

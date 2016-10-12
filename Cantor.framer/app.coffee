@@ -597,7 +597,7 @@ addBlockPromptLabelText = new TextLayer
 state = 0
 nextButton = new GlobalButton
 	parent: rootLayer
-	x: Align.right(-160)
+	x: Align.right(-20)
 	y: Align.bottom(-20)
 	action: ->
 		state = state + 1
@@ -608,6 +608,7 @@ addButton = new GlobalButton
 	parent: rootLayer
 	x: Align.right(-20)
 	y: Align.bottom(-20)
+	visible: false
 	action: ->
 		setIsAdding(not isAdding)
 
@@ -939,25 +940,25 @@ setup = ->
 		value: 10
 		parent: canvas
 		x: 200
-		y: 280
+		y: 200
 
 	testBlock2 = new BlockLens
 		value: 11
 		parent: canvas
-		x: 900
-		y: 280
+		x: 800
+		y: 200
 
 	testBlock2 = new BlockLens
 		value: 12
 		parent: canvas
-		x: 200
-		y: 880
+		x: 1400
+		y: 200
 
 	testBlock2 = new BlockLens
 		value: 13
 		parent: canvas
-		x: 900
-		y: 880
+		x: 2000
+		y: 200
 
 
 	# testBlock2 = new BlockLens
