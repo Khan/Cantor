@@ -65,7 +65,7 @@ class Lens extends Layer
 		this.persistentID = args.persistentID
 		if !this.persistentID
 			# Recordings' persistent IDs should be in a different "namespace" than users'.
-			this.persistentID = canvas.nextPersistentID * (if (recorder.isRecording or (args.derivingFrom?.persistentID < 0)) then -1 else 1)
+			this.persistentID = canvas.nextPersistentID * (if recorder.isRecording then -1 else 1)
 			canvas.nextPersistentID += 1
 		if debugShowLensFrames
 			this.borderColor = "red"
