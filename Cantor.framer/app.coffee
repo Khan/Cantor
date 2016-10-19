@@ -935,37 +935,6 @@ recorder = new Recorder ->
 
 startingOffset = 40 * 60
 setup = ->
-	testBlock2 = new BlockLens
-		value: 10
-		parent: canvas
-		x: 200
-		y: 280
-
-	testBlock2 = new BlockLens
-		value: 11
-		parent: canvas
-		x: 900
-		y: 280
-
-	testBlock2 = new BlockLens
-		value: 12
-		parent: canvas
-		x: 200
-		y: 880
-
-	testBlock2 = new BlockLens
-		value: 13
-		parent: canvas
-		x: 900
-		y: 880
-
-
-	# testBlock2 = new BlockLens
-	# 	value: 82
-	# 	parent: canvas
-	# 	x: 200
-	# 	y: 600
-
 	for sublayer in canvas.subLayers
 		continue unless (sublayer instanceof BlockLens)
 		sublayer.x += startingOffset
