@@ -27,6 +27,7 @@ We're interested in Cantor interactions which trade off control between recordin
  * Rename them as `1.json`, `2.json`, etc in the order you'd like them to be sequenced.
 * **Play back a sequence**:
  * Use the ➡ button to play the next segment in the sequence stored in `recordings`.
+ * Refresh the browser to start over with the first segment again.
 * **Share a sequence**:
  * Get the files in `recordings` as you want them.
  * Click the "Share" toolbar icon in Framer.
