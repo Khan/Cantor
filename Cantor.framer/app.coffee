@@ -708,17 +708,28 @@ class Recorder
 		this.relevantLayerGetter = relevantLayerGetter
 
 		this.ignoredPersistentIDs = new Set()
+		this.highestIDToTouchInRecordings = 0
 
 	playSavedRecording: (recordingName) =>
 		JSONRequest = new XMLHttpRequest()
 		JSONRequest.onreadystatechange = =>
 			if JSONRequest.readyState == 4
-				this.recordedEvents = JSON.parse(JSONRequest.responseText, (key, value) ->
+				# We do an awkward little pass here as we read in the JSON to make sure all the persistent IDs are negative. We associate negative IDs with recordings and treat them separately from users' blocks. We never want to delete a user's blocks, for instance.
+				events = JSON.parse(JSONRequest.responseText, (key, value) ->
 					if key == "persistentIDs"
-						return new Set(value)
+						negativeIDs = value.map (id) -> Math.abs(parseInt(id)) * -1
+						return new Set(negativeIDs)
 					else
 						return value
 				)
+				this.recordedEvents = events.map (event) ->
+					newRecords = {}
+					for layerPersistentID, layerRecord of event.layerRecords
+						if layerPersistentID[0] != "-"
+							layerPersistentID = "-" + layerPersistentID
+						newRecords[layerPersistentID] = layerRecord
+					event.layerRecords = newRecords
+					return event
 				audio = new Audio("recordings/#{recordingName}.wav?nocache=#{Date.now()}");
 				audio.addEventListener "ended", () => this.stopPlaying()
 				audio.play()
@@ -796,9 +807,9 @@ class Recorder
 						workingLayer.applyState layerRecord.state
 
 				# Clean up all persistent IDs that don't appear in the list.
-				for layer in relevantLayers when layer.persistentID < 0 # < 0 here coupled with recording-created namespacing.
+				for layer in relevantLayers when layer.persistentID <= this.highestIDToTouchInRecordings # < 0 here coupled with recording-created namespacing.
 					if !event.persistentIDs.has(layer.persistentID)
-						layer.destroy()
+						layer.visible = false
 
 				this.lastAppliedTime = event.time
 
@@ -850,6 +861,7 @@ class Recorder
 		this.recordingLayer?.destroy()
 		this.isRecording = false
 		this.recorder?.stop()
+		this.highestIDToTouchInRecordings = canvas.nextPersistentID - 1
 
 	downloadRecording: =>
 		return unless this.recorder
