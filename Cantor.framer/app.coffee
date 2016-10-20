@@ -117,12 +117,34 @@ class BlockLens extends Lens
 				this.tensTicks.push(tensTick)
 
 		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
+		
+		this.tensLabel = new TextLayer
+			parent: this
+			fontFamily: "Helvetica"
+			color: kaColors.math2
+			autoSize: true
+			fontSize: 36
+			visible: false
+			
+		this.onesLabel = new TextLayer
+			parent: this
+			fontFamily: "Helvetica"
+			color: kaColors.cs2
+			autoSize: true
+			fontSize: 36
+			
+		this.extraOnesLabel = new TextLayer
+			parent: this
+			fontFamily: "Helvetica"
+			color: kaColors.cs2
+			autoSize: true
+			fontSize: 36
 
 		this.wedge = new Wedge { parent: this }
 
 		this.resizeHandle = new ResizeHandle {parent: this}
-
-		this.reflowHandle = new ReflowHandle {parent: this}
+		
+		this.reflowHandle = new ReflowHandle {parent: this, opacity: 0}
 		this.reflowHandle.midY = BlockLens.blockSize / 2 + 2
 		this.reflowHandle.maxX = 0
 
@@ -203,6 +225,9 @@ class BlockLens extends Lens
 		setShadow()
 
 	update: (animated) ->
+		lastRow = Math.ceil((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns)
+		lastRowExtra = (this.value + this.layout.firstRowSkip) - (lastRow - 1) * this.layout.numberOfColumns
+
 		for blockNumber in [0...this.value]
 			blockLayer = this.blockLayers[blockNumber]
 			indexForLayout = blockNumber + this.layout.firstRowSkip
@@ -222,9 +247,7 @@ class BlockLens extends Lens
 			setBorder = (side, heavy) ->
 				blockLayer.style["border-#{side}-color"] = if heavy then heavyStrokeColor else BlockLens.interiorBorderColor
 				blockLayer.style["border-#{side}-width"] = if heavy then "2px" else "#{BlockLens.interiorBorderWidth}px"
-
-			lastRow = Math.ceil((this.value + this.layout.firstRowSkip) / this.layout.numberOfColumns)
-			lastRowExtra = (this.value + this.layout.firstRowSkip) - (lastRow - 1) * this.layout.numberOfColumns
+			
 			setBorder "left", columnNumber == 0 or blockNumber == 0
 			setBorder "top", rowNumber == 0 or (rowNumber == 1 and columnNumber < this.layout.firstRowSkip)
 			setBorder "bottom", rowNumber == (lastRow - 1) or (rowNumber == (lastRow - 2) and columnNumber >= lastRowExtra)
@@ -262,6 +285,22 @@ class BlockLens extends Lens
 
 		if not this.wedge.draggable.isDragging
 			this.wedge.x = this.width + Wedge.restingX
+			
+		numberOfTens = (this.value - (lastRowExtra % this.layout.numberOfColumns) - (if this.layout.firstRowSkip > 0 then this.layout.numberOfColumns - this.layout.firstRowSkip else 0))
+		this.tensLabel.text = "#{numberOfTens / this.layout.numberOfColumns}∙#{this.layout.numberOfColumns}"
+		this.tensLabel.maxX = -20
+		this.tensLabel.midY = if this.layout.firstRowSkip > 0 then 20 + BlockLens.blockSize else 20
+		this.tensLabel.visible = numberOfTens > 0
+		
+		this.onesLabel.text = "#{lastRowExtra}∙1"
+		this.onesLabel.maxX = if this.layout.numberOfColumns == 10 then -39 else -20
+		this.onesLabel.midY = this.height - 20
+		this.onesLabel.visible = lastRowExtra != this.layout.numberOfColumns
+		
+		this.extraOnesLabel.text = "#{this.layout.numberOfColumns - this.layout.firstRowSkip}∙1"
+		this.extraOnesLabel.maxX = if this.layout.numberOfColumns == 10 then -39 else -20
+		this.extraOnesLabel.midY = 20
+		this.extraOnesLabel.visible = this.layout.firstRowSkip > 0
 
 	layoutReflowHandle: (animated) ->
 # 		this.reflowHandle.animate
@@ -275,7 +314,6 @@ class BlockLens extends Lens
 		selection?.setSelected(false) if selection != this
 		this.borderWidth = if isSelected then selectionBorderWidth else 0
 		this.resizeHandle.visible = isSelected
-		this.reflowHandle.visible = isSelected
 		this.wedge.visible = isSelected
 
 		if (isSelected and selection != this) or (not isSelected and selection == this)
@@ -284,6 +322,12 @@ class BlockLens extends Lens
 
 		selection = if isSelected then this else null
 
+		this.reflowHandle.ignoreEvents = not isSelected
+		this.reflowHandle.animate { properties: {opacity: if isSelected then 1 else 0}, time: 0.15 }
+		this.tensLabel.animate { properties: {opacity: if isSelected then 0 else 1}, time: 0.15 }
+		this.onesLabel.animate { properties: {opacity: if isSelected then 0 else 1}, time: 0.15 }
+		this.extraOnesLabel.animate { properties: {opacity: if isSelected then 0 else 1}, time: 0.15 }
+	
 	#gets called on touch down and touch up events
 	setBeingTouched: (isBeingTouched) ->
 		this.isBeingTouched = isBeingTouched
@@ -470,11 +514,19 @@ class ResizeHandle extends Layer
 
 			# This is pretty hacky, even for a prototype. Eh.
 			this.parent.wedge.animate { properties: { opacity: 0 }, time: 0.2 }
+			this.parent.reflowHandle.animate { properties: {opacity: 0}, time: 0.15 }
+			this.parent.tensLabel.animate { properties: {opacity: 1}, time: 0.15 }
+			this.parent.onesLabel.animate { properties: {opacity: 1}, time: 0.15 }
+			this.parent.extraOnesLabel.animate { properties: {opacity: 1}, time: 0.15 }
 
 		this.knob.onTouchEnd =>
 			knobDot.animate { properties: { scale: 1 }, time: 0.2 }
 			verticalKnobTrack.animate { properties: { opacity: 0 }, time: 0.2}
 			this.parent.wedge.animate { properties: { opacity: 1 }, time: 0.4, delay: 0.4 }
+			this.parent.reflowHandle.animate { properties: {opacity: 1}, time: 0.15 }
+			this.parent.tensLabel.animate { properties: {opacity: 0}, time: 0.15 }
+			this.parent.onesLabel.animate { properties: {opacity: 0}, time: 0.15 }
+			this.parent.extraOnesLabel.animate { properties: {opacity: 0}, time: 0.15 }
 
 		this.knob.onPan (event) =>
 			knob.y += event.delta.y
