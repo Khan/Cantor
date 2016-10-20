@@ -301,7 +301,6 @@ class BlockLens extends Lens
 			x: this.x
 			y: this.y
 			layout: this.layout
-			derivingFrom: this
 
 		this.layout.firstRowSkip = 0
 		newBlockB = new BlockLens
@@ -310,7 +309,6 @@ class BlockLens extends Lens
 			x: this.x
 			y: newBlockA.maxY + Wedge.splitY
 			layout: this.layout
-			derivingFrom: this
 
 		this.destroy()
 
