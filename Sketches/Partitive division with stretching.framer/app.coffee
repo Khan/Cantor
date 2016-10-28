@@ -37,8 +37,8 @@ for i in [0..10]
 
 
 size = 40
-value = 8
-division = 2
+value = 2
+division = 4
 
 moveLine = (targetLayer, x1, y1, x2, y2) ->
 	
