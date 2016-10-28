@@ -1,0 +1,22 @@
+{
+  "nodes": [
+    {
+      "id": 1,
+      "recording": "1.json",
+      "audio": "1.wav",
+      "links": [
+        {
+          "action": {
+            "type": "add",
+            "size": 6
+          },
+          "target": 2
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "recording": "2.json"
+    }
+  ]
+}

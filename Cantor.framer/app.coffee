@@ -592,16 +592,6 @@ addBlockPromptLabelText = new TextLayer
 	y: Align.center()
 	width: addBlockPromptLabel.width
 
-state = 0
-nextButton = new GlobalButton
-	parent: rootLayer
-	x: Align.right(-160)
-	y: Align.bottom(-20)
-	action: ->
-		state = state + 1
-		recorder.playSavedRecording state
-nextButton.html = "<div style='color: #{kaColors.math1}; font-size: 60px; text-align: center; margin: 35% 0%'>➡️</div>"
-
 addButton = new GlobalButton
 	parent: rootLayer
 	x: Align.right(-20)
@@ -679,6 +669,7 @@ canvas.onPanEnd ->
 # Recording and playback
 
 class Recorder
+	lesson: null
 	baseRecordingTime: null
 	recordedEvents: []
 	isPlayingBackRecording: false
@@ -708,18 +699,32 @@ class Recorder
 		this.ignoredPersistentIDs = new Set()
 		this.highestIDToTouchInRecordings = 0
 
-	playSavedRecording: (recordingName) =>
-		JSONRequest = new XMLHttpRequest()
-		JSONRequest.onreadystatechange = =>
-			if JSONRequest.readyState == 4
+	loadLesson: (lessonName) =>
+		lessonRequest = new XMLHttpRequest()
+		lessonRequest.onreadystatechange = =>
+			if lessonRequest.readyState == 4
+				lesson = JSON.parse(lessonRequest.responseText)
+				this.lesson = lesson
+				this.lesson.currentNode = lesson.nodes[0]
+				this.playLessonNode this.lesson.currentNode
+
+		lessonRequest.open "GET", "recordings/#{lessonName}.json?nocache=#{Date.now()}", true
+		lessonRequest.send()
+
+	playLessonNode: (node) =>
+		# Load recording.
+		recordingRequest = new XMLHttpRequest()
+		recordingRequest.onreadystatechange = =>
+			if recordingRequest.readyState == 4
 				# We do an awkward little pass here as we read in the JSON to make sure all the persistent IDs are negative. We associate negative IDs with recordings and treat them separately from users' blocks. We never want to delete a user's blocks, for instance.
-				events = JSON.parse(JSONRequest.responseText, (key, value) ->
+				events = JSON.parse(recordingRequest.responseText, (key, value) ->
 					if key == "persistentIDs"
 						negativeIDs = value.map (id) -> Math.abs(parseInt(id)) * -1
 						return new Set(negativeIDs)
 					else
 						return value
 				)
+
 				this.recordedEvents = events.map (event) ->
 					newRecords = {}
 					for layerPersistentID, layerRecord of event.layerRecords
@@ -728,12 +733,17 @@ class Recorder
 						newRecords[layerPersistentID] = layerRecord
 					event.layerRecords = newRecords
 					return event
-				audio = new Audio("recordings/#{recordingName}.wav?nocache=#{Date.now()}");
-				audio.addEventListener "ended", () => this.stopPlaying()
-				audio.play()
+
+				# Load optional audio.
+				if node.audio != null
+					audio = new Audio("recordings/#{node.audio}?nocache=#{Date.now()}");
+					audio.addEventListener "ended", () => this.stopPlaying()
+					audio.play()
+
 				this.startPlaying()
-		JSONRequest.open "GET", "recordings/#{recordingName}.json?nocache=#{Date.now()}", true
-		JSONRequest.send()
+
+		recordingRequest.open "GET", "recordings/#{node.recording}?nocache=#{Date.now()}", true
+		recordingRequest.send()
 
 	clear: =>
 		this.recordedEvents = []
@@ -963,3 +973,5 @@ grid.onDoubleTap (event) =>
 			continue unless (layer instanceof BlockLens)
 			layer.destroy()
 		setup()
+
+recorder.loadLesson "lesson" 
