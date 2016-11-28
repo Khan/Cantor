@@ -666,14 +666,12 @@ canvas.onPanEnd ->
 	pendingBlockToAddLabel.visible = false
 	setIsAdding false
 
-# Recording and playback
+# Playback
 
-class Recorder
+class LessonPlayer
 	lesson: null
-	baseRecordingTime: null
 	recordedEvents: []
 	isPlayingBackRecording: false
-	isRecording: false
 
 	constructor: (relevantLayerGetter) ->
 		window.AudioContext = window.AudioContext || window.webkitAudioContext
@@ -682,17 +680,8 @@ class Recorder
 
 		window.addEventListener("keydown", (event) =>
 			key = String.fromCharCode(event.keyCode)
-			if key == "C"
-				this.clear()
 			if key == "P"
 				this.startPlaying()
-			if key == "R"
-				if this.isRecording
-					this.stopRecording()
-				else
-					this.startRecording()
-			if key == "D"
-				this.downloadRecording()
 		)
 		this.relevantLayerGetter = relevantLayerGetter
 
@@ -744,11 +733,6 @@ class Recorder
 
 		recordingRequest.open "GET", "recordings/#{node.recording}?nocache=#{Date.now()}", true
 		recordingRequest.send()
-
-	clear: =>
-		this.recordedEvents = []
-		this.recorder?.clear()
-		this.ignoredPersistentIDs.clear()
 
 	startPlaying: =>
 		return if this.isRecording or this.isPlayingBackRecording
@@ -836,117 +820,7 @@ class Recorder
 			lastEvent.persistentIDs.forEach (persistentID) =>
 				this.ignoredPersistentIDs.add	persistentID
 
-	startRecording: =>
-		this.recordingLayer = new TextLayer
-			parent: rootLayer
-			x: Align.left(40)
-			y: Align.bottom(-53)
-			fontSize: 32
-			autoSize: true
-			color: kaColors.humanities1
-			text: "Recording…"
-
-		this.isRecording = true
-		actuallyStartRecording = =>
-			this.clear()
-			this.baseRecordingTime = window.performance.now()
-			this.record this.baseRecordingTime
-
-		if navigator.getUserMedia
-			navigator.getUserMedia({audio: true}, (stream) =>
-				input = this.audioContext.createMediaStreamSource stream
-				this.recorder = new RecorderUtility(input)
-				this.recorder.record()
-				actuallyStartRecording()
-			, (error) =>
-				print "Audio input error: #{error.name}"
-				actuallyStartRecording()
-			)
-		else
-			actuallyStartRecording()
-
-	stopRecording: =>
-		this.recordingLayer?.destroy()
-		this.isRecording = false
-		this.recorder?.stop()
-		this.highestIDToTouchInRecordings = canvas.nextPersistentID - 1
-
-	downloadRecording: =>
-		return unless this.recorder
-		this.recorder.exportWAV (blob) =>
-			recordingFilename = new Date().toISOString()
-			this.saveData blob, recordingFilename + '.wav'
-
-			eventsJSON = JSON.stringify(this.recordedEvents, (key, value) ->
-				if key == "persistentIDs"
-					return Array.from(value)
-				else if value instanceof Color
-					return value.toRgbString()
-				else
-					return value
-			)
-			eventsBlob = new Blob [eventsJSON], {type: "application/json"}
-			this.saveData eventsBlob, recordingFilename + '.json'
-
-	saveData: (blob, fileName) =>
-		a = document.createElement "a"
-		document.body.appendChild a
-		a.style = "display: none";
-		url = window.URL.createObjectURL(blob)
-		a.href = url
-		a.download = fileName
-		a.click()
-		window.URL.revokeObjectURL(url)
-
-	recordingIDForLayer: (layer) =>
-		# TODO: cache?
-		if layer.persistentID then return layer.persistentID
-		path = layer.index
-		currentLayer = layer.parent
-		while currentLayer and currentLayer != canvas
-			currentLayerComponent = currentLayer.persistentID || currentLayer.index
-			path = "#{currentLayerComponent}/#{path}"
-			return path if currentLayer.persistentID
-			currentLayer = currentLayer.parent
-
-	record: (timestamp) =>
-		return unless this.isRecording
-
-		layerRecords = {}
-		layerRecordCount = 0
-		persistentIDs = new Set
-		for layer in this.relevantLayerGetter()
-			continue if layer.skipRecording
-			recordingID = this.recordingIDForLayer(layer)
-			continue unless recordingID
-
-			# Find the last time this layer appeared in our recording.
-			lastLayerRecord = null
-			for recordedEvent in this.recordedEvents by -1
-				lastLayerRecord = recordedEvent.layerRecords[recordingID]
-				break if lastLayerRecord
-
-			props = layer.props
-			# Here assuming that the state can't change if the style doesn't change. Not a great long-term assumption.
-			if !lastLayerRecord or !deepEqual(lastLayerRecord.props, props)
-				layerRecords[recordingID] =
-					props: props
-					style: layer.style.cssText # We write down both props and style because some style stuff is not captured in props. This is super wasteful.
-					state: layer.getState?()
-				layerRecordCount += 1
-
-			persistentIDs.add layer.persistentID if layer.persistentID
-
-		if layerRecordCount > 0
-			event =
-				time: timestamp - this.baseRecordingTime
-				layerRecords: layerRecords
-				persistentIDs: persistentIDs
-			this.recordedEvents.push event
-
-		requestAnimationFrame this.record
-
-recorder = new Recorder ->
+player = new LessonPlayer ->
 	result = canvas.descendants
 	result.push(canvas)
 	return result
@@ -974,4 +848,4 @@ grid.onDoubleTap (event) =>
 			layer.destroy()
 		setup()
 
-recorder.loadLesson "lesson" 
+player.loadLesson "lesson"
