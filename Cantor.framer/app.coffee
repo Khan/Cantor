@@ -64,8 +64,7 @@ class Lens extends Layer
 		this.value = args.value
 		this.persistentID = args.persistentID
 		if !this.persistentID
-			# Recordings' persistent IDs should be in a different "namespace" than users'.
-			this.persistentID = canvas.nextPersistentID * (if recorder.isRecording then -1 else 1)
+			this.persistentID = canvas.nextPersistentID
 			canvas.nextPersistentID += 1
 		if debugShowLensFrames
 			this.borderColor = "red"
@@ -661,12 +660,29 @@ canvas.onPan (event) ->
 canvas.onPanEnd ->
 	return unless isAdding
 	pendingBlockToAdd?.borderWidth = 0
+
+	event = new LessonEvent(LessonEvent.AddedBlock)
+	event.size = pendingBlockToAdd?.value
+	canvas.player.handleEvent(event)
+
 	pendingBlockToAdd = null
 
 	pendingBlockToAddLabel.visible = false
 	setIsAdding false
 
 # Playback
+
+class LessonEvent
+	@AddedBlock: 0
+	@MovedBlockAbsolute: 1
+
+	type: null
+	id: null
+	size: null
+	x: null
+	y: null
+
+	constructor: (@type) ->
 
 class LessonPlayer
 	lesson: null
@@ -694,11 +710,15 @@ class LessonPlayer
 			if lessonRequest.readyState == 4
 				lesson = JSON.parse(lessonRequest.responseText)
 				this.lesson = lesson
-				this.lesson.currentNode = lesson.nodes[0]
+				this.lesson.currentNode = this.findLessonNode 1
 				this.playLessonNode this.lesson.currentNode
 
 		lessonRequest.open "GET", "recordings/#{lessonName}.json?nocache=#{Date.now()}", true
 		lessonRequest.send()
+
+	findLessonNode: (id) =>
+		for node in this.lesson.nodes
+			if node.id == id then return node
 
 	playLessonNode: (node) =>
 		# Load recording.
@@ -735,7 +755,7 @@ class LessonPlayer
 		recordingRequest.send()
 
 	startPlaying: =>
-		return if this.isRecording or this.isPlayingBackRecording
+		return if this.isPlayingBackRecording
 
 		this.basePlaybackTime = window.performance.now()
 		this.lastAppliedTime = -1
@@ -806,6 +826,7 @@ class LessonPlayer
 				this.lastAppliedTime = event.time
 
 				if event == this.recordedEvents[this.recordedEvents.length - 1]
+					this.stopPlaying()
 					return
 				else
 					break
@@ -820,10 +841,20 @@ class LessonPlayer
 			lastEvent.persistentIDs.forEach (persistentID) =>
 				this.ignoredPersistentIDs.add	persistentID
 
-player = new LessonPlayer ->
-	result = canvas.descendants
-	result.push(canvas)
-	return result
+	handleEvent: (event) =>
+		return if this.isPlayingBackRecording or this.lesson.currentNode.links == undefined
+
+		for link in this.lesson.currentNode.links
+			activated = false
+			if link.action.type == "add" and link.action.size == event.size
+				activated = true
+
+			if link.action.type == "moveAbsolute" and link.action.x == event.x and link.action.y == event.y
+				activated = true
+
+			if activated
+				this.lesson.currentNode = this.findLessonNode link.target
+				this.playLessonNode this.lesson.currentNode
 
 # Setup
 
@@ -848,4 +879,9 @@ grid.onDoubleTap (event) =>
 			layer.destroy()
 		setup()
 
-player.loadLesson "lesson"
+canvas.player = new LessonPlayer ->
+	result = canvas.descendants
+	result.push(canvas)
+	return result
+
+canvas.player.loadLesson "lesson"
