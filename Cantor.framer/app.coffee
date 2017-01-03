@@ -309,6 +309,11 @@ class BlockLens extends Lens
 			y: newBlockA.maxY + Wedge.splitY
 			layout: this.layout
 
+		event = new LessonEvent(LessonEvent.SplitBlock)
+		event.splitFirstHalf = newValueA
+		event.splitSecondHalf = newValueB
+		canvas.player.handleEvent(event)
+
 		this.destroy()
 
 
@@ -675,12 +680,17 @@ canvas.onPanEnd ->
 class LessonEvent
 	@AddedBlock: 0
 	@MovedBlockAbsolute: 1
+	@SplitBlock: 2
 
 	type: null
 	id: null
+
 	size: null
 	x: null
 	y: null
+
+	splitFirstHalf: null
+	splitSecondHalf: null
 
 	constructor: (@type) ->
 
@@ -850,6 +860,9 @@ class LessonPlayer
 				activated = true
 
 			if link.action.type == "moveAbsolute" and link.action.x == event.x and link.action.y == event.y
+				activated = true
+
+			if link.action.type == "split" and link.id == event.id and link.action.splitFirstHalf == event.splitFirstHalf and link.action.splitSecondHalf == event.splitSecondHalf
 				activated = true
 
 			if activated
