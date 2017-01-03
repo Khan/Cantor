@@ -865,6 +865,7 @@ class LessonPlayer
 		for link in this.lesson.currentNode.links
 			activated = false
 			if link.action.type == "add" and link.action.size == event.size
+				# TODO: need to figure out lesson ID references
 				activated = true
 
 			if link.action.id == event.id
