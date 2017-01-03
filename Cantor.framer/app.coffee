@@ -867,18 +867,25 @@ class LessonPlayer
 			if link.action.type == "add" and link.action.size == event.size
 				activated = true
 
-			if link.action.type == "moveAbsolute" and link.action.x == event.x and link.action.y == event.y
-				activated = true
+			if link.action.id == event.id
+				if link.action.type == "moveAbsolute"
+					activated = true
 
-			if link.action.type == "split" and link.id == event.id and link.action.splitFirstHalf == event.splitFirstHalf and link.action.splitSecondHalf == event.splitSecondHalf
-				activated = true
+				if link.action.type == "split"
+					activated = true
 
-			if link.action.type == "resize" and link.id == event.id
-				if link.action.rows != null
-					activated = link.action.rows == event.rows
+					if link.action.splitFirstHalf != null
+						activated = link.action.splitFirstHalf == event.splitFirstHalf
 
-				if link.action.columns != null
-					activated = activated and link.action.columns == event.columns
+					if link.action.splitSecondHalf != null
+						activated = activated and link.action.splitSecondHalf == event.splitSecondHalf
+
+				if link.action.type == "resize"
+					if link.action.rows != null
+						activated = link.action.rows == event.rows
+
+					if link.action.columns != null
+						activated = activated and link.action.columns == event.columns
 
 			if activated
 				this.lesson.currentNode = this.findLessonNode link.target
