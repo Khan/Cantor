@@ -490,6 +490,11 @@ class ResizeHandle extends Layer
 
 			event.stopPropagation()
 
+			lessonEvent = new LessonEvent(LessonEvent.ResizeBlock)
+			lessonEvent.columns = this.parent.layout.numberOfColumns
+			lessonEvent.rows = Math.floor(this.parent.value / this.parent.layout.numberOfColumns)
+			canvas.player.handleEvent(lessonEvent)
+
 		this.knob.onPanEnd =>
 			this.updatePosition true
 			event.stopPropagation()
@@ -681,6 +686,7 @@ class LessonEvent
 	@AddedBlock: 0
 	@MovedBlockAbsolute: 1
 	@SplitBlock: 2
+	@ResizeBlock: 3
 
 	type: null
 	id: null
@@ -688,6 +694,8 @@ class LessonEvent
 	size: null
 	x: null
 	y: null
+	rows: null
+	columns: null
 
 	splitFirstHalf: null
 	splitSecondHalf: null
@@ -864,6 +872,13 @@ class LessonPlayer
 
 			if link.action.type == "split" and link.id == event.id and link.action.splitFirstHalf == event.splitFirstHalf and link.action.splitSecondHalf == event.splitSecondHalf
 				activated = true
+
+			if link.action.type == "resize" and link.id == event.id
+				if link.action.rows != null
+					activated = link.action.rows == event.rows
+
+				if link.action.columns != null
+					activated = activated and link.action.columns == event.columns
 
 			if activated
 				this.lesson.currentNode = this.findLessonNode link.target
