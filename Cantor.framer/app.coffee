@@ -1,3 +1,4 @@
+Framer.Device.deviceType = "fullscreen"
 # Everything was designed for @2x displays (which... Framer claims has have a contentScale of 1.0), so if Framer is running for a desktop display, we'll need to scale.
 Framer.Device.contentScale = if Framer.Device.deviceType == "fullscreen" then 0.5 else 1.0
 Screen.backgroundColor = "white"
@@ -30,6 +31,8 @@ rootLayer = new Layer
 	backgroundColor: ""
 	width: Screen.width / Framer.Device.contentScale
 	height: Screen.height / Framer.Device.contentScale
+document.body.addEventListener 'contextmenu', (event) ->
+	event.preventDefault()
 
 selection = null
 canvasComponent = new ScrollComponent
@@ -594,6 +597,7 @@ addBlockPromptLabelText = new TextLayer
 
 state = 0
 nextButton = new GlobalButton
+	opacity: 0
 	parent: rootLayer
 	x: Align.right(-160)
 	y: Align.bottom(-20)
@@ -606,8 +610,18 @@ addButton = new GlobalButton
 	parent: rootLayer
 	x: Align.right(-20)
 	y: Align.bottom(-20)
+	opacity: 0
 	action: ->
 		setIsAdding(not isAdding)
+
+addCrosshair = new Layer
+	backgroundColor: "clear"
+	width: 0
+	height: 0
+addCrosshair.html = "<div style='color: #{kaColors.math1}; font-size: 60px; text-align: center; margin: -17px -17px'>+</div>"
+window.addEventListener "mousemove", (event) ->
+	addCrosshair.x = event.clientX * 2
+	addCrosshair.y = event.clientY * 2
 
 isAdding = null
 setIsAdding = (newIsAdding) ->
@@ -617,10 +631,11 @@ setIsAdding = (newIsAdding) ->
 		canvasComponent.scroll = false
 	else
 		canvasComponent.scroll = true
-	addBlockPromptLabel.animate
-		properties: {y: if isAdding then 0 else -addBlockPromptLabel.height}
-		time: 0.2
-	addButton.html = "<div style='color: #{kaColors.math1}; font-size: 70px; text-align: center; margin: 25% 0%'>#{if isAdding then 'x' else '+'}</div>"
+	addCrosshair.visible = newIsAdding
+# 	addBlockPromptLabel.animate
+# 		properties: {y: if isAdding then 0 else -addBlockPromptLabel.height}
+# 		time: 0.2
+# 	addButton.html = "<div style='color: #{kaColors.math1}; font-size: 70px; text-align: center; margin: 25% 0%'>#{if isAdding then 'x' else '+'}</div>"
 
 setIsAdding(false)
 
@@ -648,13 +663,13 @@ canvas.onPanStart ->
 canvas.onPan (event) ->
 	return unless isAdding
 
-	value = 10 * Math.max(0, Math.floor((event.point.y - event.start.y) / BlockLens.blockSize)) + utils.clip(Math.ceil((event.point.x - event.start.x) / BlockLens.blockSize), 0, 10)
+	value = 10 * Math.max(0, Math.floor(event.point.y / BlockLens.blockSize) - Math.floor(event.start.y / BlockLens.blockSize)) + utils.clip(Math.floor(event.point.x / BlockLens.blockSize) - Math.floor(event.start.x / BlockLens.blockSize) + 1, 0, 10)
 	value = Math.max(1, value)
 	return if value == pendingBlockToAdd?.value
 
 	startingLocation = Screen.convertPointToLayer(event.start, canvas)
 	startingLocation.x = Math.floor(startingLocation.x / BlockLens.blockSize) * BlockLens.blockSize
-	startingLocation.y = Math.floor(startingLocation.y / BlockLens.blockSize) * BlockLens.blockSize - BlockLens.blockSize * 1
+	startingLocation.y = Math.floor(startingLocation.y / BlockLens.blockSize) * BlockLens.blockSize 
 	pendingBlockToAdd?.destroy()
 	pendingBlockToAdd = new BlockLens
 		parent: canvas
@@ -690,6 +705,9 @@ class Recorder
 		this.audioContext = new AudioContext
 
 		window.addEventListener("keydown", (event) =>
+			if event.keyCode == 17
+				setIsAdding true
+
 			key = String.fromCharCode(event.keyCode)
 			if key == "C"
 				this.clear()
@@ -702,6 +720,11 @@ class Recorder
 					this.startRecording()
 			if key == "D"
 				this.downloadRecording()
+		)
+		
+		window.addEventListener("keyup", (event) =>
+			if event.keyCode == 17
+				setIsAdding false
 		)
 		this.relevantLayerGetter = relevantLayerGetter
 
