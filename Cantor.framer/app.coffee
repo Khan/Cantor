@@ -1,6 +1,6 @@
 Framer.Device.deviceType = "fullscreen"
 # Everything was designed for @2x displays (which... Framer claims has have a contentScale of 1.0), so if Framer is running for a desktop display, we'll need to scale.
-Framer.Device.contentScale = if Framer.Device.deviceType == "fullscreen" then 0.5 else 1.0
+contentScale = if Framer.Device.deviceType == "fullscreen" then 0.5 else 1.0
 Screen.backgroundColor = "white"
 Framer.Extras.Hints.disable()
 
@@ -29,8 +29,11 @@ debugShowLensFrames = false
 
 rootLayer = new Layer
 	backgroundColor: ""
-	width: Screen.width / Framer.Device.contentScale
-	height: Screen.height / Framer.Device.contentScale
+	width: Screen.width / contentScale
+	height: Screen.height / contentScale
+	originX: 0
+	originY: 0
+	scale: contentScale
 document.body.addEventListener 'contextmenu', (event) ->
 	event.preventDefault()
 
@@ -616,12 +619,13 @@ addButton = new GlobalButton
 
 addCrosshair = new Layer
 	backgroundColor: "clear"
+	parent: rootLayer
 	width: 0
 	height: 0
 addCrosshair.html = "<div style='color: #{kaColors.math1}; font-size: 60px; text-align: center; margin: -17px -17px'>+</div>"
 window.addEventListener "mousemove", (event) ->
-	addCrosshair.x = event.clientX * 2
-	addCrosshair.y = event.clientY * 2
+	addCrosshair.x = event.clientX / contentScale
+	addCrosshair.y = event.clientY / contentScale
 
 isAdding = null
 setIsAdding = (newIsAdding) ->
