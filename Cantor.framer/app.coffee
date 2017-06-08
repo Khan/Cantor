@@ -724,6 +724,25 @@ class Recorder
 					this.startRecording()
 			if key == "D"
 				this.downloadRecording()
+			if key == "S"
+				this.startRecording(true)
+				this.stopRecording()
+				this.downloadRecording()				
+			if key == "O"
+				input = document.createElement "input"
+				input.type = "file"
+				document.body.appendChild input
+				input.addEventListener 'change', (event) =>
+					reader = new FileReader()
+					reader.onload = (fileEvent) =>
+						console.log(reader.result)
+						for layer in this.relevantLayerGetter()
+							layer.destroy() if layer.persistentID
+						this.playRecordedData reader.result
+						this.stopPlaying()
+					reader.readAsText(input.files[0])
+				input.click()
+
 		)
 		
 		window.addEventListener("keyup", (event) =>
@@ -735,30 +754,34 @@ class Recorder
 		this.ignoredPersistentIDs = new Set()
 		this.highestIDToTouchInRecordings = 0
 
+	playRecordedData: (data) =>
+		# We do an awkward little pass here as we read in the JSON to make sure all the persistent IDs are negative. We associate negative IDs with recordings and treat them separately from users' blocks. We never want to delete a user's blocks, for instance.
+		events = JSON.parse(data, (key, value) ->
+			if key == "persistentIDs"
+				negativeIDs = value.map (id) -> Math.abs(parseInt(id)) * -1
+				return new Set(negativeIDs)
+			else
+				return value
+		)
+		this.recordedEvents = events.map (event) ->
+			newRecords = {}
+			for layerPersistentID, layerRecord of event.layerRecords
+				if layerPersistentID[0] != "-"
+					layerPersistentID = "-" + layerPersistentID
+				newRecords[layerPersistentID] = layerRecord
+			event.layerRecords = newRecords
+			return event
+		this.startPlaying()
+
+
 	playSavedRecording: (recordingName) =>
 		JSONRequest = new XMLHttpRequest()
 		JSONRequest.onreadystatechange = =>
 			if JSONRequest.readyState == 4
-				# We do an awkward little pass here as we read in the JSON to make sure all the persistent IDs are negative. We associate negative IDs with recordings and treat them separately from users' blocks. We never want to delete a user's blocks, for instance.
-				events = JSON.parse(JSONRequest.responseText, (key, value) ->
-					if key == "persistentIDs"
-						negativeIDs = value.map (id) -> Math.abs(parseInt(id)) * -1
-						return new Set(negativeIDs)
-					else
-						return value
-				)
-				this.recordedEvents = events.map (event) ->
-					newRecords = {}
-					for layerPersistentID, layerRecord of event.layerRecords
-						if layerPersistentID[0] != "-"
-							layerPersistentID = "-" + layerPersistentID
-						newRecords[layerPersistentID] = layerRecord
-					event.layerRecords = newRecords
-					return event
+				playRecordedData JSONRequest.responseText
 				audio = new Audio("recordings/#{recordingName}.wav?nocache=#{Date.now()}");
 				audio.addEventListener "ended", () => this.stopPlaying()
 				audio.play()
-				this.startPlaying()
 		JSONRequest.open "GET", "recordings/#{recordingName}.json?nocache=#{Date.now()}", true
 		JSONRequest.send()
 
@@ -853,7 +876,7 @@ class Recorder
 			lastEvent.persistentIDs.forEach (persistentID) =>
 				this.ignoredPersistentIDs.add	persistentID
 
-	startRecording: =>
+	startRecording: (skipAudio) =>
 		this.recordingLayer = new TextLayer
 			parent: rootLayer
 			x: Align.left(40)
@@ -869,7 +892,7 @@ class Recorder
 			this.baseRecordingTime = window.performance.now()
 			this.record this.baseRecordingTime
 
-		if navigator.getUserMedia
+		if navigator.getUserMedia and not skipAudio
 			navigator.getUserMedia({audio: true}, (stream) =>
 				input = this.audioContext.createMediaStreamSource stream
 				this.recorder = new RecorderUtility(input)
@@ -889,11 +912,8 @@ class Recorder
 		this.highestIDToTouchInRecordings = canvas.nextPersistentID - 1
 
 	downloadRecording: =>
-		return unless this.recorder
-		this.recorder.exportWAV (blob) =>
-			recordingFilename = new Date().toISOString()
-			this.saveData blob, recordingFilename + '.wav'
-
+		recordingFilename = new Date().toLocaleString()
+		exportEvents = () =>
 			eventsJSON = JSON.stringify(this.recordedEvents, (key, value) ->
 				if key == "persistentIDs"
 					return Array.from(value)
@@ -904,6 +924,14 @@ class Recorder
 			)
 			eventsBlob = new Blob [eventsJSON], {type: "application/json"}
 			this.saveData eventsBlob, recordingFilename + '.json'
+
+		if this.recorder
+			this.recorder.exportWAV (blob) =>
+				this.saveData blob, recordingFilename + '.wav'
+				exportEvents()
+		else
+			exportEvents()
+
 
 	saveData: (blob, fileName) =>
 		a = document.createElement "a"
