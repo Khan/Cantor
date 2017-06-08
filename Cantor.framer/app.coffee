@@ -667,7 +667,7 @@ canvas.onPanStart ->
 canvas.onPan (event) ->
 	return unless isAdding
 
-	value = 10 * Math.max(0, Math.floor(event.point.y / BlockLens.blockSize) - Math.floor(event.start.y / BlockLens.blockSize)) + utils.clip(Math.floor(event.point.x / BlockLens.blockSize) - Math.floor(event.start.x / BlockLens.blockSize) + 1, 0, 10)
+	value = 10 * Math.max(0, Math.floor((event.point.y - event.start.y) / contentScale / BlockLens.blockSize)) + utils.clip(Math.floor((event.point.x - event.start.x) / contentScale / BlockLens.blockSize) + 1, 0, 10)
 	value = Math.max(1, value)
 	return if value == pendingBlockToAdd?.value
 
