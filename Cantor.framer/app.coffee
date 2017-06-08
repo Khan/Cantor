@@ -388,8 +388,8 @@ class ReflowHandle extends Layer
 			verticalKnobTrack.animate { properties: {opacity: 0}, time: 0.2}
 
 		this.onPan (event) ->
-			knob.y += event.delta.y
-			this.x += event.delta.x
+			knob.y += event.delta.y / contentScale
+			this.x += event.delta.x / contentScale
 			updateVerticalKnobTrackGradient()
 
 			this.parent.layout.firstRowSkip = utils.clip(Math.ceil(this.maxX / BlockLens.blockSize), 0, this.parent.layout.numberOfColumns - 1)
@@ -483,8 +483,8 @@ class ResizeHandle extends Layer
 			this.parent.wedge.animate { properties: { opacity: 1 }, time: 0.4, delay: 0.4 }
 
 		this.knob.onPan (event) =>
-			knob.y += event.delta.y
-			this.x += event.delta.x
+			knob.y += event.delta.y / contentScale
+			this.x += event.delta.x / contentScale
 			this.updateVerticalKnobTrackGradient()
 
 			this.parent.layout.numberOfColumns = Math.max(1, Math.floor((this.x + this.verticalBrace.x) / BlockLens.blockSize))
