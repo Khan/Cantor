@@ -5,10 +5,15 @@ Screen.backgroundColor = "white"
 Framer.Extras.Hints.disable()
 
 kaColors = require "kaColors"
-utils = require "utils"
-{TextLayer} = require "TextLayer"
+utils = require "utils.coffee"
+{TextLayer} = require "TextLayer.coffee"
 RecorderUtility = require "recorder"
-{deepEqual} = require "npm"
+# {deepEqual} = require "npm"
+
+dashImage = require "cantor-images/dash.png"
+gridImage = require "cantor-images/grid.svg"
+triangleImage = require "cantor-images/triangle@2x.png"
+antsImage = require "cantor-images/ants.gif"
 
 # Configuration, constants
 
@@ -57,7 +62,7 @@ if enableBackgroundGrid
 		parent: canvas
 		width: Screen.width * 10
 		height: Screen.height * 10
-	grid.style["background"] = "url('images/#{if enableHighContrastGrid then "grid-high-contrast.svg" else "grid.svg"}')"
+	grid.style["background"] = "url(#{gridImage})"
 	grid.skipRecording = true
 	canvasComponent.updateContent()
 
@@ -122,7 +127,7 @@ class BlockLens extends Lens
 					height: 2
 				this.tensTicks.push(tensTick)
 
-		this.style["-webkit-border-image"] = "url('images/ants.gif') 1 repeat repeat"
+		this.style["-webkit-border-image"] = "url(#{antsImage}) 1 repeat repeat"
 
 		this.wedge = new Wedge { parent: this }
 
@@ -374,8 +379,9 @@ class ReflowHandle extends Layer
 			bottomFadeStartingHeight = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob - fadeLength
 			verticalKnobTrack.height = trackLengthBeyondKnob + Math.abs(knob.midY) + trackLengthBeyondKnob
 			verticalKnobTrack.y = -trackLengthBeyondKnob + this.midY + Math.min(0, knob.midY)
-			verticalKnobTrack.style["-webkit-mask-image"] = "url(images/dash.png)"
+			verticalKnobTrack.style["-webkit-mask-image"] = "url(#{dashImage})"
 			verticalKnobTrack.style.background = "-webkit-linear-gradient(top, #{transparentTrackColor} 0%, #{trackColor} #{fadeLength}px, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
+			console.log(verticalKnobTrack.style)
 
 		updateVerticalKnobTrackGradient()
 
@@ -465,7 +471,8 @@ class ResizeHandle extends Layer
 			bottomFadeStartingHeight = knob.midY - this.verticalBrace.maxY
 			verticalKnobTrack.height = knob.midY - this.verticalBrace.maxY + trackLengthBeyondKnob
 			verticalKnobTrack.y = this.verticalBrace.maxY
-			verticalKnobTrack.style["-webkit-mask-image"] = "url(images/dash.png)"
+			verticalKnobTrack.style["-webkit-mask-image"] = "url(#{dashImage})"
+			verticalKnobTrack.style["mask-image"] = "url(#{dashImage})"
 			verticalKnobTrack.style.background = "-webkit-linear-gradient(top, #{trackColor} 0%, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
 
 		this.updateVerticalKnobTrackGradient()
@@ -529,7 +536,7 @@ class Wedge extends Layer
 		throw "Requires parent layer" if args.parent == null
 		super args
 		this.props =
-			image: "images/triangle@2x.png"
+			image: triangleImage
 			width: 80
 			height: 40
 			backgroundColor: ""
