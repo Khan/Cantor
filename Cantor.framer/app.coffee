@@ -893,11 +893,14 @@ class Recorder
 					return
 				# else
 					# break
-		requestAnimationFrame this.play
+		this.animationRequest = requestAnimationFrame this.play
 
 	stopPlaying: =>
+		return if not this.animationRequest 
 		this.isPlayingBackRecording = false
 		this.playingLayer.destroy()
+		
+		cancelAnimationFrame this.animationRequest
 
 		if this.recordedEvents.length > 0
 			lastEvent = this.recordedEvents[this.recordedEvents.length - 1]
@@ -1025,6 +1028,11 @@ recorder = new Recorder ->
 	return result
 
 window.cantorRecorder = recorder
+
+
+rootLayer.onTouchStart (event) ->
+	recorder.stopPlaying()
+
 
 # Setup
 
