@@ -8,6 +8,7 @@ kaColors = require "kaColors"
 utils = require "utils.coffee"
 {TextLayer} = require "TextLayer.coffee"
 RecorderUtility = require "recorder"
+deepEqual = require "deep-equal"
 # {deepEqual} = require "npm"
 
 dashImage = require "cantor-images/dash.png"
@@ -39,6 +40,7 @@ rootLayer = new Layer
 	originX: 0
 	originY: 0
 	scale: contentScale
+window.rootLayer = rootLayer
 document.body.addEventListener 'contextmenu', (event) ->
 	event.preventDefault()
 
@@ -48,23 +50,28 @@ canvasComponent = new ScrollComponent
 	parent: rootLayer
 	width: rootLayer.width
 	height: rootLayer.height
+canvasComponent.style["overflow"] = "visible"
 canvas = canvasComponent.content
+canvas.style["overflow"] = "visible"
 canvas.nextPersistentID = 1 # TODO: Make a real canvas data structure...
 canvas.onTap (event, layer) ->
 	selection?.setSelected(false) if not layer.draggable.isDragging
-canvasComponent.content.pinchable.enabled = true
+canvasComponent.content.pinchable.enabled = false
 canvasComponent.content.pinchable.minScale = 0.5
 canvasComponent.content.pinchable.maxScale = 2
 canvasComponent.content.pinchable.rotate = false
+canvasComponent.content.draggable.enabled = false
 
 if enableBackgroundGrid
 	grid = new Layer
 		parent: canvas
-		width: Screen.width * 10
-		height: Screen.height * 10
+		width: 10000
+		height: 10000
 	grid.style["background"] = "url(#{gridImage})"
 	grid.skipRecording = true
 	canvasComponent.updateContent()
+	grid.x -= 3600
+	grid.y -= 3600
 
 # Lenses
 
@@ -664,6 +671,7 @@ pendingBlockToAddLabel = new TextLayer
 	paddingRight: 10
 	paddingBottom: 10
 	borderRadius: 4
+	text: ""
 
 canvas.onPanStart ->
 	return unless isAdding
@@ -840,12 +848,13 @@ class Recorder
 			this.lastAppliedTime = -1
 
 		# Find the relevant event...
-		for event in this.recordedEvents by -1
+		for event in this.recordedEvents
 			# We'll play the soonest event we haven't already played.
-			if event.time <= dt and event.time > this.lastAppliedTime
+			if event.time > this.lastAppliedTime and event.time < dt
 				relevantLayers = this.relevantLayerGetter()
 				# Found it! Apply each layer's record:
-				for layerPersistentID, layerRecord of event.layerRecords
+				for layerPersistentID in Object.keys(event.layerRecords).sort()
+					layerRecord = event.layerRecords[layerPersistentID]
 					# Find the live layer layer that corresponds to this.
 					# TODO: something less stupid slow... if it ends up being necessary.
 					persistentIDComponents = layerPersistentID.split("/").map (component) -> parseInt(component)
@@ -882,8 +891,8 @@ class Recorder
 
 				if event == this.recordedEvents[this.recordedEvents.length - 1] and not shouldLoop
 					return
-				else
-					break
+				# else
+					# break
 		requestAnimationFrame this.play
 
 	stopPlaying: =>
@@ -1020,18 +1029,18 @@ window.cantorRecorder = recorder
 # Setup
 
 startingOffset = 40 * 60
-setup = ->
-	for sublayer in canvas.subLayers
-		continue unless (sublayer instanceof BlockLens)
-		sublayer.x += startingOffset
-		sublayer.y += startingOffset
+# setup = ->
+# 	for sublayer in canvas.subLayers
+# 		continue unless (sublayer instanceof BlockLens)
+# 		sublayer.x += startingOffset
+# 		sublayer.y += startingOffset
 
-setup()
+# setup()
 
-canvasComponent.scrollX = startingOffset
-canvasComponent.scrollY = startingOffset
-grid.x -= startingOffset
-grid.y -= startingOffset
+# canvasComponent.scrollX = startingOffset
+# canvasComponent.scrollY = startingOffset
+# grid.x -= startingOffset
+# grid.y -= startingOffset
 
 grid.onDoubleTap (event) =>
 	if event.fingers > 1
