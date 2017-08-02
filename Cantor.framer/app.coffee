@@ -381,7 +381,6 @@ class ReflowHandle extends Layer
 			verticalKnobTrack.y = -trackLengthBeyondKnob + this.midY + Math.min(0, knob.midY)
 			verticalKnobTrack.style["-webkit-mask-image"] = "url(#{dashImage})"
 			verticalKnobTrack.style.background = "-webkit-linear-gradient(top, #{transparentTrackColor} 0%, #{trackColor} #{fadeLength}px, #{trackColor} #{bottomFadeStartingHeight}px, #{transparentTrackColor} 100%)"
-			console.log(verticalKnobTrack.style)
 
 		updateVerticalKnobTrackGradient()
 
@@ -1002,6 +1001,8 @@ recorder = new Recorder ->
 	result = canvas.descendants
 	result.push(canvas)
 	return result
+
+window.cantorRecorder = recorder
 
 # Setup
 
