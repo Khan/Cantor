@@ -811,6 +811,7 @@ class Recorder
 			autoSize: true
 			color: kaColors.cs1
 			text: "Playing…"
+			visible: false
 
 		this.play this.basePlaybackTime
 
