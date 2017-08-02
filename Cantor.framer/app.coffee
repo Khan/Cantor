@@ -1058,6 +1058,7 @@ resumePlayback = new GlobalButton
 resumePlayback.html = "<div style='color: #{kaColors.math1}; font-size: 50px; text-align: center; margin: 20% 0%'>▶️</div>"
 
 rootLayer.onTouchStart (event) ->
+	return unless recorder.isPlayingBackRecording
 	recorder.stopPlaying()
 	resumePlayback.animate
 		opacity: 1
