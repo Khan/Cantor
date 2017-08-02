@@ -578,7 +578,7 @@ class GlobalButton extends Layer
 		props =
 			backgroundColor: kaColors.white
 			borderColor: kaColors.gray76
-			borderRadius: 4
+			borderRadius: 8
 			borderWidth: 1
 			width: 100
 			height: 100
@@ -769,6 +769,7 @@ class Recorder
 		this.highestIDToTouchInRecordings = 0
 
 	playRecordedData: (data) =>
+		this.lastPlayedRecordedData = data
 		# We do an awkward little pass here as we read in the JSON to make sure all the persistent IDs are negative. We associate negative IDs with recordings and treat them separately from users' blocks. We never want to delete a user's blocks, for instance.
 		events = JSON.parse(data, (key, value) ->
 			if key == "persistentIDs"
@@ -863,6 +864,7 @@ class Recorder
 					workingLayer = relevantLayers.find (testLayer) ->
 						testLayer.persistentID == basePersistentID
 
+
 					# What if the base persistent layer doesn't exist? i.e. a layer was added during the recording?
 					if (not workingLayer) and persistentIDComponents.length == 1
 						# For now assume it's a BlockLens.
@@ -884,7 +886,7 @@ class Recorder
 
 				# Clean up all persistent IDs that don't appear in the list.
 				for layer in relevantLayers when layer.persistentID <= this.highestIDToTouchInRecordings # < 0 here coupled with recording-created namespacing.
-					if !event.persistentIDs.has(layer.persistentID)
+					if !event.persistentIDs.has(layer.persistentID) and layer.visible
 						layer.visible = false
 
 				this.lastAppliedTime = event.time
@@ -1030,9 +1032,37 @@ recorder = new Recorder ->
 window.cantorRecorder = recorder
 
 
+bottomBar = new Layer
+	parent: rootLayer
+	x: 0
+	y: rootLayer.height - 120
+	width: rootLayer.width
+	backgroundColor: ""
+
+resumePlayback = new GlobalButton
+	parent: bottomBar
+	x: 40
+	y: 0
+	borderColor: '#BABEC2'
+	borderWidth: 1
+	opacity: 0
+	action: () ->
+		for layer in recorder.relevantLayerGetter()
+			layer.destroy() if layer.persistentID
+		recorder.ignoredPersistentIDs = new Set()
+		recorder.playRecordedData recorder.lastPlayedRecordedData
+		resumePlayback.animate
+			opacity: 0
+			options:
+				time: 0.1
+resumePlayback.html = "<div style='color: #{kaColors.math1}; font-size: 50px; text-align: center; margin: 20% 0%'>▶️</div>"
+
 rootLayer.onTouchStart (event) ->
 	recorder.stopPlaying()
-
+	resumePlayback.animate
+		opacity: 1
+		options:
+			time: 0.2
 
 # Setup
 
