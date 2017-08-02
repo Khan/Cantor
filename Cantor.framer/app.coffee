@@ -827,10 +827,22 @@ class Recorder
 			newSource.start 0
 
 	play: (timestamp) =>
+		shouldLoop = true
+		pauseAtEndOfLoop = 2000
+		dt = if shouldLoop
+			(timestamp - this.basePlaybackTime) % (this.recordedEvents[this.recordedEvents.length - 1].time + pauseAtEndOfLoop)
+		else
+			timestamp - this.basePlaybackTime
+
+		if this.lastAppliedTime > dt
+			for layer in this.relevantLayerGetter()
+				layer.destroy() if layer.persistentID
+			this.lastAppliedTime = -1
+
 		# Find the relevant event...
 		for event in this.recordedEvents by -1
 			# We'll play the soonest event we haven't already played.
-			if event.time <= (timestamp - this.basePlaybackTime) and event.time > this.lastAppliedTime
+			if event.time <= dt and event.time > this.lastAppliedTime
 				relevantLayers = this.relevantLayerGetter()
 				# Found it! Apply each layer's record:
 				for layerPersistentID, layerRecord of event.layerRecords
@@ -868,7 +880,7 @@ class Recorder
 
 				this.lastAppliedTime = event.time
 
-				if event == this.recordedEvents[this.recordedEvents.length - 1]
+				if event == this.recordedEvents[this.recordedEvents.length - 1] and not shouldLoop
 					return
 				else
 					break
