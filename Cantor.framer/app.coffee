@@ -40,7 +40,6 @@ rootLayer = new Layer
 	originX: 0
 	originY: 0
 	scale: contentScale
-window.rootLayer = rootLayer
 document.body.addEventListener 'contextmenu', (event) ->
 	event.preventDefault()
 
@@ -52,6 +51,7 @@ canvasComponent = new ScrollComponent
 	height: rootLayer.height
 canvasComponent.style["overflow"] = "visible"
 canvas = canvasComponent.content
+window.rootLayer = canvasComponent
 canvas.style["overflow"] = "visible"
 canvas.nextPersistentID = 1 # TODO: Make a real canvas data structure...
 canvas.onTap (event, layer) ->
