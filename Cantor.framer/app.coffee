@@ -800,6 +800,17 @@ class Recorder
 		JSONRequest.open "GET", "recordings/#{recordingName}.json?nocache=#{Date.now()}", true
 		JSONRequest.send()
 
+	pause: =>
+		return unless this.isPlayingBackRecording
+		this.pauseTime = window.performance.now()
+		cancelAnimationFrame this.animationRequest
+
+	unpause: =>
+		return unless this.pauseTime
+		this.basePlaybackTime += window.performance.now() - this.pauseTime
+		this.pauseTime = null
+		this.play window.performance.now()
+
 	clear: =>
 		this.recordedEvents = []
 		this.recorder?.clear()
@@ -1080,10 +1091,3 @@ startingOffset = 40 * 60
 # canvasComponent.scrollY = startingOffset
 # grid.x -= startingOffset
 # grid.y -= startingOffset
-
-grid.onDoubleTap (event) =>
-	if event.fingers > 1
-		for layer in canvas.subLayers
-			continue unless (layer instanceof BlockLens)
-			layer.destroy()
-		setup()
