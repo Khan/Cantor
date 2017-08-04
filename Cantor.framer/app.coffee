@@ -582,6 +582,7 @@ class GlobalButton extends Layer
 			borderWidth: 1
 			width: 100
 			height: 100
+		this.style["cursor"] = "pointer"
 		Object.assign(props, args)
 		this.props = props
 		this.action = args.action
@@ -617,6 +618,7 @@ nextButton = new GlobalButton
 	parent: rootLayer
 	x: Align.right(-160)
 	y: Align.bottom(-20)
+	visible: false
 	action: ->
 		state = state + 1
 		recorder.playSavedRecording state
@@ -716,6 +718,7 @@ class Recorder
 	recordedEvents: []
 	isPlayingBackRecording: false
 	isRecording: false
+	shouldLoop: true
 
 	constructor: (relevantLayerGetter) ->
 		window.AudioContext = window.AudioContext || window.webkitAudioContext
@@ -847,9 +850,8 @@ class Recorder
 			newSource.start 0
 
 	play: (timestamp) =>
-		shouldLoop = true
 		pauseAtEndOfLoop = 2000
-		dt = if shouldLoop
+		dt = if this.shouldLoop
 			(timestamp - this.basePlaybackTime) % (this.recordedEvents[this.recordedEvents.length - 1].time + pauseAtEndOfLoop)
 		else
 			timestamp - this.basePlaybackTime
@@ -902,15 +904,16 @@ class Recorder
 
 				this.lastAppliedTime = event.time
 
-				if event == this.recordedEvents[this.recordedEvents.length - 1] and not shouldLoop
+				if event == this.recordedEvents[this.recordedEvents.length - 1] and not this.shouldLoop
+					this.isPlayingBackRecording = false
 					return
 				# else
 					# break
 		this.animationRequest = requestAnimationFrame this.play
 
 	stopPlaying: =>
-		return if not this.animationRequest 
 		this.isPlayingBackRecording = false
+		return if not this.animationRequest
 		this.playingLayer.destroy()
 		
 		cancelAnimationFrame this.animationRequest
@@ -928,6 +931,7 @@ class Recorder
 			fontSize: 32
 			autoSize: true
 			color: kaColors.humanities1
+			visible: false
 			text: "Recording…"
 
 		this.isRecording = true
@@ -1042,6 +1046,8 @@ recorder = new Recorder ->
 
 window.cantorRecorder = recorder
 
+# Other modes include "recordYourOwn" and "playThrough"
+cantorMode = "autoplay"
 
 bottomBar = new Layer
 	parent: rootLayer
@@ -1068,7 +1074,52 @@ resumePlayback = new GlobalButton
 				time: 0.1
 resumePlayback.html = "<div style='color: #{kaColors.math1}; font-size: 50px; text-align: center; margin: 20% 0%'>▶️</div>"
 
+recordAndPlayButtonText = (text) -> "<div style='font-family: ProximaNova, Helvetica, sans-serif; color: #{kaColors.math1}; font-size: 36px; text-align: center; margin: 8% 0%'>#{text}</div>"
+recordAndPlayState = "idle"
+recordAndPlayButton = new GlobalButton
+	parent: bottomBar
+	x: 20
+	y: 30
+	borderColor: '#BABEC2'
+	borderWidth: 1
+	visible: false
+	action: () ->
+		if recordAndPlayState == "idle"
+			recorder.startRecording()
+			recordAndPlayState = "recording"
+			recordAndPlayButton.html = recordAndPlayButtonText "Stop"
+		else if recordAndPlayState == "recording"
+			recorder.stopRecording()
+			recordAndPlayState = "recorded"
+			recordAndPlayButton.html = recordAndPlayButtonText "Replay"
+		else if recordAndPlayState == "recorded"
+			recorder.shouldLoop = true
+			recorder.startPlaying()
+			recordAndPlayState = "replaying"
+			recordAndPlayButton.html = recordAndPlayButtonText "Stop"
+		else if recordAndPlayState == "replaying"
+			recorder.shouldLoop = false
+			recorder.stopPlaying()
+			recordAndPlayState = "idle"
+			recordAndPlayButton.html = recordAndPlayButtonText "Record"
+
+recordAndPlayButton.width = 175
+recordAndPlayButton.height = 70
+recordAndPlayButton.html = recordAndPlayButtonText "Record"
+
+window.setCantorMode = (newCantorMode) ->
+	console.log(newCantorMode)
+	resumePlayback.visible = false
+	switch newCantorMode
+		when "recordYourOwn"
+			recordAndPlayButton.visible = true
+			recorder.shouldLoop = false
+		else
+			recorder.shouldLoop = true
+	cantorMode = newCantorMode
+
 rootLayer.onTouchStart (event) ->
+	return unless cantorMode == "autoplay"
 	return unless recorder.isPlayingBackRecording
 	recorder.stopPlaying()
 	resumePlayback.animate
