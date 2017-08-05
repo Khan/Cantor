@@ -792,16 +792,12 @@ class Recorder
 		this.startPlaying()
 
 
-	playSavedRecording: (recordingName) =>
-		JSONRequest = new XMLHttpRequest()
-		JSONRequest.onreadystatechange = =>
-			if JSONRequest.readyState == 4
-				playRecordedData JSONRequest.responseText
-				audio = new Audio("recordings/#{recordingName}.wav?nocache=#{Date.now()}");
-				audio.addEventListener "ended", () => this.stopPlaying()
-				audio.play()
-		JSONRequest.open "GET", "recordings/#{recordingName}.json?nocache=#{Date.now()}", true
-		JSONRequest.send()
+	playSavedRecording: (recordingData, audioURL) =>
+		return if this.audio
+		this.playRecordedData recordingData
+		this.audio = new Audio(audioURL);
+		this.audio.addEventListener "ended", () => this.stopPlaying()
+		this.audio.play()
 
 	pause: =>
 		return unless this.isPlayingBackRecording
@@ -915,6 +911,8 @@ class Recorder
 		this.isPlayingBackRecording = false
 		return if not this.animationRequest
 		this.playingLayer.destroy()
+		this.audio.pause()
+		this.audio = null
 		
 		cancelAnimationFrame this.animationRequest
 
@@ -1108,18 +1106,27 @@ recordAndPlayButton.height = 70
 recordAndPlayButton.html = recordAndPlayButtonText "Record"
 
 window.setCantorMode = (newCantorMode) ->
-	console.log(newCantorMode)
 	resumePlayback.visible = false
 	switch newCantorMode
 		when "recordYourOwn"
 			recordAndPlayButton.visible = true
+			recorder.shouldLoop = false
+		when "prompt"
+			recordAndPlayButton.visible = true
+			recordAndPlayButton.html = recordAndPlayButtonText "Play"
+			recordAndPlayButton.action = () ->
+				if not recorder.isPlayingBackRecording
+					for layer in recorder.relevantLayerGetter()
+						layer.destroy() if layer.persistentID
+					recorder.ignoredPersistentIDs = new Set()
+					recorder.playSavedRecording window.recordingData, window.recordingAudioURL
 			recorder.shouldLoop = false
 		else
 			recorder.shouldLoop = true
 	cantorMode = newCantorMode
 
 rootLayer.onTouchStart (event) ->
-	return unless cantorMode == "autoplay"
+	return unless cantorMode == "autoplay" or cantorMode == "prompt"
 	return unless recorder.isPlayingBackRecording
 	recorder.stopPlaying()
 	resumePlayback.animate
