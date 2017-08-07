@@ -911,8 +911,9 @@ class Recorder
 		this.isPlayingBackRecording = false
 		return if not this.animationRequest
 		this.playingLayer.destroy()
-		this.audio.pause()
-		this.audio = null
+		if this.audio
+			this.audio.pause()
+			this.audio = null
 		
 		cancelAnimationFrame this.animationRequest
 
