@@ -1115,7 +1115,7 @@ window.setCantorMode = (newCantorMode) ->
 			recorder.shouldLoop = false
 		when "prompt"
 			recordAndPlayButton.visible = true
-			recordAndPlayButton.html = buttonText "Play"
+			recordAndPlayButton.html = buttonText "Start"
 			recordAndPlayButton.action = () ->
 				if not recorder.isPlayingBackRecording
 					for layer in recorder.relevantLayerGetter()
