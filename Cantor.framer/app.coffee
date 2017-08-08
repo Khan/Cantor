@@ -1055,10 +1055,12 @@ bottomBar = new Layer
 	width: rootLayer.width
 	backgroundColor: ""
 
+buttonText = (text) -> "<div style='font-family: ProximaNova, Helvetica, sans-serif; color: #{kaColors.math1}; font-size: 36px; text-align: center; margin: 8% 0%'>#{text}</div>"
+
 resumePlayback = new GlobalButton
 	parent: bottomBar
-	x: 40
-	y: 0
+	x: 20
+	y: 30
 	borderColor: '#BABEC2'
 	borderWidth: 1
 	opacity: 0
@@ -1071,9 +1073,10 @@ resumePlayback = new GlobalButton
 			opacity: 0
 			options:
 				time: 0.1
-resumePlayback.html = "<div style='color: #{kaColors.math1}; font-size: 50px; text-align: center; margin: 20% 0%'>▶️</div>"
+resumePlayback.width = 175
+resumePlayback.height = 70
+resumePlayback.html = buttonText "Restart"
 
-recordAndPlayButtonText = (text) -> "<div style='font-family: ProximaNova, Helvetica, sans-serif; color: #{kaColors.math1}; font-size: 36px; text-align: center; margin: 8% 0%'>#{text}</div>"
 recordAndPlayState = "idle"
 recordAndPlayButton = new GlobalButton
 	parent: bottomBar
@@ -1086,25 +1089,25 @@ recordAndPlayButton = new GlobalButton
 		if recordAndPlayState == "idle"
 			recorder.startRecording()
 			recordAndPlayState = "recording"
-			recordAndPlayButton.html = recordAndPlayButtonText "Stop"
+			recordAndPlayButton.html = buttonText "Stop"
 		else if recordAndPlayState == "recording"
 			recorder.stopRecording()
 			recordAndPlayState = "recorded"
-			recordAndPlayButton.html = recordAndPlayButtonText "Replay"
+			recordAndPlayButton.html = buttonText "Replay"
 		else if recordAndPlayState == "recorded"
 			recorder.shouldLoop = true
 			recorder.startPlaying()
 			recordAndPlayState = "replaying"
-			recordAndPlayButton.html = recordAndPlayButtonText "Stop"
+			recordAndPlayButton.html = buttonText "Stop"
 		else if recordAndPlayState == "replaying"
 			recorder.shouldLoop = false
 			recorder.stopPlaying()
 			recordAndPlayState = "idle"
-			recordAndPlayButton.html = recordAndPlayButtonText "Record"
+			recordAndPlayButton.html = buttonText "Record"
 
 recordAndPlayButton.width = 175
 recordAndPlayButton.height = 70
-recordAndPlayButton.html = recordAndPlayButtonText "Record"
+recordAndPlayButton.html = buttonText "Record"
 
 window.setCantorMode = (newCantorMode) ->
 	resumePlayback.visible = false
@@ -1114,7 +1117,7 @@ window.setCantorMode = (newCantorMode) ->
 			recorder.shouldLoop = false
 		when "prompt"
 			recordAndPlayButton.visible = true
-			recordAndPlayButton.html = recordAndPlayButtonText "Play"
+			recordAndPlayButton.html = buttonText "Play"
 			recordAndPlayButton.action = () ->
 				if not recorder.isPlayingBackRecording
 					for layer in recorder.relevantLayerGetter()
