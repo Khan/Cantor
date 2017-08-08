@@ -174,23 +174,16 @@ class BlockLens extends Lens
 
 		if enableBlockDigitLabels
 			this.digitLabel = new TextLayer
-				x: -72
-				fontFamily: "Helvetica"
+				x: 44
+				fontFamily: "'Proxima Nova', 'Helvetica Neue', Helvetica"
+				fontWeight: 600
 				text: this.value
 				parent: this
-				color: kaColors.math1
-				fontSize: 34
+				color: kaColors.white
+				fontSize: 24
 				autoSize: true
-				backgroundColor: "rgba(255, 255, 255, 1.0)"
 				borderRadius: 5
 				textAlign: "right"
-				paddingTop: 5
-				paddingRight: 6
-				borderColor: "rgba(0, 0, 0, 0.1)"
-				borderWidth: 1
-			this.digitLabel.width += 12
-			this.digitLabel.height += 5
-			this.digitLabel.index = -1
 
 		this.update()
 		this.resizeHandle.updatePosition false
@@ -277,7 +270,8 @@ class BlockLens extends Lens
 			tensTick.width = (BlockLens.blockSize * this.layout.numberOfColumns) for tensTick in this.tensTicks
 
 		if enableBlockDigitLabels
-			this.digitLabel.midY = this.height - 20
+			this.digitLabel.midX = BlockLens.blockSize / 2
+			this.digitLabel.midY = this.height - BlockLens.blockSize / 2
 
 		this.resizeHandle.visible = (selection == this) and (this.layout.state != "tentativeReceiving")
 		this.resizeHandle.updateSublayers()
