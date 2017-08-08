@@ -24,7 +24,7 @@ shouldReflowSecondAdditionArgument = true
 enableBackgroundGrid = true
 enableBlockGrid = true
 enableBlockGridTicks = false
-enableBlockDigitLabels = false
+enableBlockDigitLabels = true
 enableDistinctColoringForOnesBlocks = true
 
 enableHighContrastGrid = false
@@ -174,7 +174,7 @@ class BlockLens extends Lens
 
 		if enableBlockDigitLabels
 			this.digitLabel = new TextLayer
-				x: 42
+				x: -72
 				fontFamily: "Helvetica"
 				text: this.value
 				parent: this
@@ -183,10 +183,14 @@ class BlockLens extends Lens
 				autoSize: true
 				backgroundColor: "rgba(255, 255, 255, 1.0)"
 				borderRadius: 5
-				textAlign: "center"
+				textAlign: "right"
 				paddingTop: 5
+				paddingRight: 6
+				borderColor: "rgba(0, 0, 0, 0.1)"
+				borderWidth: 1
 			this.digitLabel.width += 12
 			this.digitLabel.height += 5
+			this.digitLabel.index = -1
 
 		this.update()
 		this.resizeHandle.updatePosition false
@@ -273,7 +277,7 @@ class BlockLens extends Lens
 			tensTick.width = (BlockLens.blockSize * this.layout.numberOfColumns) for tensTick in this.tensTicks
 
 		if enableBlockDigitLabels
-			this.digitLabel.midY = this.height / 2
+			this.digitLabel.midY = this.height - 20
 
 		this.resizeHandle.visible = (selection == this) and (this.layout.state != "tentativeReceiving")
 		this.resizeHandle.updateSublayers()
