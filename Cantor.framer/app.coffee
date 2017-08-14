@@ -184,6 +184,7 @@ class BlockLens extends Lens
 				autoSize: true
 				borderRadius: 5
 				textAlign: "right"
+			this.digitLabel.skipRecording = true
 
 		this.update()
 		this.resizeHandle.updatePosition false
