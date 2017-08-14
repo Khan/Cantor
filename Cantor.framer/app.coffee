@@ -793,8 +793,13 @@ class Recorder
 
 	playSavedRecording: (recordingData, audioURL) =>
 		return if this.audio
-		this.playRecordedData recordingData
+		# TODO start playing this when the audio statts playback
 		this.audio = new Audio(audioURL);
+		startPlayingListener = null
+		startPlayingListener = () => 
+				this.playRecordedData recordingData
+				this.audio?.removeEventListener "playing", startPlayingListener
+		this.audio.addEventListener "playing", startPlayingListener
 		this.audio.addEventListener "ended", () => this.stopPlaying()
 		this.audio.play()
 
