@@ -13,6 +13,8 @@ deepEqual = require "deep-equal"
 
 dashImage = require "cantor-images/dash.png"
 gridImage = require "cantor-images/grid.svg"
+gridLowContrastImage = require "cantor-images/grid-low-contrast.svg"
+gridTransitionImage = require "cantor-images/grid-transition.svg"
 triangleImage = require "cantor-images/triangle@2x.png"
 antsImage = require "cantor-images/ants.gif"
 
@@ -67,11 +69,42 @@ if enableBackgroundGrid
 		parent: canvas
 		width: 10000
 		height: 10000
-	grid.style["background"] = "url(#{gridImage})"
+	grid.style["background"] = "url(#{gridImage}) -1px 0px"
 	grid.skipRecording = true
+
+	secondGrid = new Layer
+		parent: canvas
+		width: 10001
+		height: 10000
+		visible: false
+	secondGrid.style["background"] = "url(#{gridLowContrastImage})"
+	secondGrid.skipRecording = true
+
+	gridTransition = new Layer
+		parent: canvas
+		width: 400
+		height: 10000
+		visible: false
+	gridTransition.style["background"] = "url(#{gridTransitionImage}) -1px 0px"
+	gridTransition.skipRecording = true
+
+	contrastGridOffset = 120
+
 	canvasComponent.updateContent()
-	grid.x -= 3600
+	# grid.x -= 3600
 	grid.y -= 3600
+	grid.x += contrastGridOffset + 400
+	secondGrid.x = -10000 + contrastGridOffset
+
+	gridTransition.x = grid.x - 400
+	gridTransition.y = grid.y
+
+	window.setShowGridTransition = (shouldShowGridTransition) ->
+		secondGrid.visible = shouldShowGridTransition
+		gridTransition.visible = shouldShowGridTransition
+		grid.x = if shouldShowGridTransition then contrastGridOffset + 400 else -3600
+
+	window.setShowGridTransition(false)
 
 # Lenses
 
@@ -673,10 +706,12 @@ pendingBlockToAddLabel = new TextLayer
 	paddingBottom: 10
 	borderRadius: 4
 	text: ""
+	visible: false
 
 canvas.onPanStart ->
 	return unless isAdding
 
+	pendingBlockToAddLabel.visible = true
 	pendingBlockToAddLabel.bringToFront()
 
 canvas.onPan (event) ->
@@ -697,7 +732,6 @@ canvas.onPan (event) ->
 		value: value
 	pendingBlockToAdd.borderWidth = 1
 
-	pendingBlockToAddLabel.visible = true
 	pendingBlockToAddLabel.text = pendingBlockToAdd.value
 	pendingBlockToAddLabel.midX = startingLocation.x + BlockLens.blockSize * 5
 	pendingBlockToAddLabel.y = startingLocation.y - 100
