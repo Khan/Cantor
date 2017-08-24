@@ -984,7 +984,7 @@ class Recorder
 				this.recorder.record()
 				actuallyStartRecording()
 			, (error) =>
-				print "Audio input error: #{error.name}"
+				# print "Audio input error: #{error.name}"
 				actuallyStartRecording()
 			)
 		else
