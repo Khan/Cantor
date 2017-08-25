@@ -441,7 +441,7 @@ class ReflowHandle extends Layer
 
 			event.stopPropagation()
 
-		this.onPanEnd =>
+		this.onPanEnd (event) =>
 			isAnimating = true
 			knobAnimation = knob.animate { properties: {midY: this.height / 2}, time: 0.2 }
 			knobAnimation.on Events.AnimationEnd, ->
@@ -537,7 +537,7 @@ class ResizeHandle extends Layer
 
 			event.stopPropagation()
 
-		this.knob.onPanEnd =>
+		this.knob.onPanEnd (event) =>
 			this.updatePosition true
 			event.stopPropagation()
 
