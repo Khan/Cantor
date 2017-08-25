@@ -850,7 +850,6 @@ class Recorder
 
 	clear: =>
 		this.recordedEvents = []
-		this.recorder?.clear()
 		this.ignoredPersistentIDs.clear()
 
 	startPlaying: =>
@@ -872,16 +871,11 @@ class Recorder
 
 		this.play this.basePlaybackTime
 
-		return unless this.recorder
-		this.recorder.getBuffer (buffers) =>
-			newSource = this.audioContext.createBufferSource()
-			newBuffer = this.audioContext.createBuffer 2, buffers[0].length, this.audioContext.sampleRate
-			newBuffer.getChannelData(0).set buffers[0]
-			newBuffer.getChannelData(1).set buffers[1]
-			newSource.buffer = newBuffer
-			newSource.addEventListener "ended", (event) => this.stopPlaying()
-			newSource.connect this.audioContext.destination
-			newSource.start 0
+		return unless this.recordedData
+		this.audio = new Audio(window.URL.createObjectURL(this.recordedData));
+		startPlayingListener = null
+		this.audio.addEventListener "ended", () => this.stopPlaying()
+		this.audio.play()
 
 	play: (timestamp) =>
 		pauseAtEndOfLoop = 2000
@@ -979,9 +973,11 @@ class Recorder
 
 		if navigator.getUserMedia and not skipAudio
 			navigator.getUserMedia({audio: true}, (stream) =>
-				input = this.audioContext.createMediaStreamSource stream
-				this.recorder = new RecorderUtility(input)
-				this.recorder.record()
+				this.recorder = new MediaRecorder(stream)
+				this.recorder.addEventListener("dataavailable", (event) =>
+					this.recordedData = event.data
+				)
+				this.recorder.start()
 				actuallyStartRecording()
 			, (error) =>
 				# print "Audio input error: #{error.name}"
