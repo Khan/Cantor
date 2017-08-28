@@ -1153,11 +1153,11 @@ window.setCantorMode = (newCantorMode) ->
 			recordAndPlayButton.visible = true
 			recordAndPlayButton.html = buttonText "Start"
 			recordAndPlayButton.action = () ->
-				if not recorder.isPlayingBackRecording
-					for layer in recorder.relevantLayerGetter()
-						layer.destroy() if layer.persistentID
-					recorder.ignoredPersistentIDs = new Set()
-					recorder.playSavedRecording window.recordingData, window.recordingAudioURL
+				recordAndPlayButton.html = buttonText "Restart"
+				for layer in recorder.relevantLayerGetter()
+					layer.destroy() if layer.persistentID
+				recorder.ignoredPersistentIDs = new Set()
+				recorder.playSavedRecording window.recordingData, window.recordingAudioURL
 			recorder.shouldLoop = false
 		else
 			recorder.shouldLoop = true
