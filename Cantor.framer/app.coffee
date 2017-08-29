@@ -122,6 +122,9 @@ class Lens extends Layer
 			this.borderColor = "red"
 			this.borderWidth = 1
 
+# Hello I am a huge hack for the prompt feature of the Cantor report. See true definition below.
+blockDidResize = null
+
 class BlockLens extends Lens
 	this.blockSize = 40
 	this.interiorBorderColor = if enableBlockGrid then "rgba(85, 209, 229, 0.4)" else ""
@@ -136,6 +139,8 @@ class BlockLens extends Lens
 			numberOfColumns: 10
 			firstRowSkip: 0
 			state: "static"
+
+		this.minColumnWidth = this.layout.numberOfColumns
 
 		this.blockLayers = []
 		for blockNumber in [0...this.value]
@@ -309,6 +314,7 @@ class BlockLens extends Lens
 
 		this.resizeHandle.visible = (selection == this) and (this.layout.state != "tentativeReceiving")
 		this.resizeHandle.updateSublayers()
+		this.minColumnWidth = Math.min(this.layout.numberOfColumns, this.minColumnWidth) unless window.cantorRecorder.isPlayingBackRecording
 
 		if not this.wedge.draggable.isDragging
 			this.wedge.x = this.width + Wedge.restingX
@@ -538,6 +544,7 @@ class ResizeHandle extends Layer
 			event.stopPropagation()
 
 		this.knob.onPanEnd (event) =>
+			blockDidResize?(this.parent)
 			this.updatePosition true
 			event.stopPropagation()
 
@@ -827,11 +834,14 @@ class Recorder
 
 	playSavedRecording: (recordingData, audioURL) =>
 		return if this.audio
-		# TODO start playing this when the audio statts playback
+		# TODO start playing this when the audio starts playback
 		this.audio = new Audio(audioURL);
 		startPlayingListener = null
 		startPlayingListener = () => 
-				this.playRecordedData recordingData
+				if recordingData
+					this.playRecordedData recordingData
+				else
+					this.isPlayingBackRecording = true # hack hack hack
 				this.audio?.removeEventListener "playing", startPlayingListener
 		this.audio.addEventListener "playing", startPlayingListener
 		this.audio.addEventListener "ended", () => this.stopPlaying()
@@ -1143,6 +1153,8 @@ recordAndPlayButton.width = 175
 recordAndPlayButton.height = 70
 recordAndPlayButton.html = buttonText "Record"
 
+promptHasReprompted = false
+
 window.setCantorMode = (newCantorMode) ->
 	resumePlayback.visible = false
 	switch newCantorMode
@@ -1150,9 +1162,14 @@ window.setCantorMode = (newCantorMode) ->
 			recordAndPlayButton.visible = true
 			recorder.shouldLoop = false
 		when "prompt"
+			blockDidResize = (block) ->
+				if block.minColumnWidth <= 4 and not promptHasReprompted
+					promptHasReprompted = true
+					recorder.playSavedRecording null, window.recordingFollowupAudioURL
 			recordAndPlayButton.visible = true
 			recordAndPlayButton.html = buttonText "Start"
 			recordAndPlayButton.action = () ->
+				promptHasReprompted = false
 				recordAndPlayButton.html = buttonText "Restart"
 				for layer in recorder.relevantLayerGetter()
 					layer.destroy() if layer.persistentID
